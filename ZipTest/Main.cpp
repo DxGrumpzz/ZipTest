@@ -41,6 +41,7 @@ int main()
 
     int fileIndexer = -1;
 
+
     while (indexer < zipFileSize)
     {
         pkSignature = buffer[indexer + 0];
@@ -56,13 +57,28 @@ int main()
             files.push_back(std::vector<Byte>());
             fileIndexer++;
         };
-        
+
         files[fileIndexer].emplace_back(buffer[indexer]);
 
         indexer++;
     };
 
 
+    short filenameLength = ((*(files.end() - 1)).at(26)) + 1;
+
+    char* filename = new char[filenameLength]
+    {
+        0
+    };
+
+    auto zipFile = (*(files.end() - 1));
+    for (int a = 0; a < filenameLength; a++)
+    {
+        filename[a] = zipFile[30 + a];
+    }
+
+    delete[] filename;
+    filename = nullptr;
     delete[] buffer;
     buffer = nullptr;
 };
