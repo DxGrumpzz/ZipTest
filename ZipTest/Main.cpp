@@ -11,7 +11,7 @@ int main()
 {
     const wchar_t* zipFilepath = L"TestZip1.zip";
 
-    std::ifstream fileStream(zipFilepath);
+    std::wifstream fileStream(zipFilepath);
 
     if (fileStream.is_open() == false)
     {
@@ -27,13 +27,13 @@ int main()
 
     uintmax_t zipFileSize = std::filesystem::file_size(zipFilepath);
 
-    char* buffer = new char[zipFileSize];
+    wchar_t* buffer = new wchar_t[zipFileSize];
     memset(buffer, 0, zipFileSize);
 
     fileStream.read(buffer, zipFileSize);
 
 
-    std::vector<std::vector<Byte>> files;
+    std::vector<std::vector<uint8_t>> files;
 
     int pkSignature = 0;
 
@@ -54,7 +54,7 @@ int main()
 
         if (pkSignature == PK_SIGNATURE)
         {
-            files.push_back(std::vector<Byte>());
+            files.push_back(std::vector<uint8_t>());
             fileIndexer++;
         };
 
