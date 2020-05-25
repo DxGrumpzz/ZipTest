@@ -1,11 +1,27 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
-#include <vector>
 
-typedef unsigned char Byte;
 
 constexpr int PK_SIGNATURE = 0x504b0304;
+
+
+const wchar_t* GetLocalZipFileName(std::vector<uint8_t>& const zipFileData)
+{
+    const short filenameLength = zipFileData[26];
+
+    wchar_t* filename = new wchar_t[filenameLength + 1] { 0 };
+
+    for (int a = 0; a < filenameLength; a++)
+    {
+        filename[a] = zipFileData[30 + a];
+    };
+
+    return filename;
+};
+
+
+
 
 int main()
 {
@@ -64,21 +80,16 @@ int main()
     };
 
 
-    short filenameLength = ((*(files.end() - 1)).at(26)) + 1;
-
-    char* filename = new char[filenameLength]
+    for (int a = 0; a < files.size(); a++)
     {
-        0
+        const wchar_t* filename = GetLocalZipFileName(files[a]);
+        
+        std::wcout << filename << L"\n";
+
+        delete[] filename;
+        buffer = nullptr;
     };
 
-    auto zipFile = (*(files.end() - 1));
-    for (int a = 0; a < filenameLength; a++)
-    {
-        filename[a] = zipFile[30 + a];
-    }
-
-    delete[] filename;
-    filename = nullptr;
     delete[] buffer;
     buffer = nullptr;
 };
