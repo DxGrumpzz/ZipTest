@@ -1,12 +1,15 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <string>
 
+
+typedef uint8_t Byte;
 
 constexpr int PK_SIGNATURE = 0x504b0304;
 
 
-const wchar_t* GetLocalZipFileName(std::vector<uint8_t>& const zipFileData)
+const wchar_t* GetLocalZipFileName(std::vector<Byte>& const zipFileData)
 {
     const short filenameLength = zipFileData[26];
 
@@ -20,6 +23,39 @@ const wchar_t* GetLocalZipFileName(std::vector<uint8_t>& const zipFileData)
     return filename;
 };
 
+
+void GetLocalZipFileData(const std::vector<Byte>& zipFileData, std::vector<Byte>& outdata)
+{
+    const short filenameLength = zipFileData[26];
+
+    const size_t startOfDataIndex = filenameLength + 30;
+
+    for (size_t a = startOfDataIndex; a < zipFileData.size(); a++)
+    {
+        Byte dataPointer = zipFileData[a];
+        outdata.emplace_back(dataPointer);
+    };
+};
+
+
+void GetLocalZipFileDataW2(const std::vector<Byte>& zipFileData, wchar_t*& outData, int& outdataLength)
+{
+    const short filenameLength = zipFileData[26];
+
+    const size_t startOfDataIndex = filenameLength + 30;
+
+    outdataLength = zipFileData.size() - startOfDataIndex;
+
+    outData = new wchar_t[outdataLength + 1] { 0 };
+
+    for (size_t a = startOfDataIndex; a < zipFileData.size(); a++)
+    {
+        Byte dataPointer = zipFileData[a];
+        outData[a - startOfDataIndex] = dataPointer;
+    };
+
+    int s = 0;
+};
 
 
 
@@ -43,13 +79,12 @@ int main()
 
     uintmax_t zipFileSize = std::filesystem::file_size(zipFilepath);
 
-    wchar_t* buffer = new wchar_t[zipFileSize];
-    memset(buffer, 0, zipFileSize);
+    wchar_t* buffer = new wchar_t[zipFileSize + 0] { 0 };
 
     fileStream.read(buffer, zipFileSize);
 
 
-    std::vector<std::vector<uint8_t>> files;
+    std::vector<std::vector<Byte>> files;
 
     int pkSignature = 0;
 
@@ -70,7 +105,7 @@ int main()
 
         if (pkSignature == PK_SIGNATURE)
         {
-            files.push_back(std::vector<uint8_t>());
+            files.push_back(std::vector<Byte>());
             fileIndexer++;
         };
 
@@ -79,16 +114,26 @@ int main()
         indexer++;
     };
 
-
+    
     for (int a = 0; a < files.size(); a++)
     {
-        const wchar_t* filename = GetLocalZipFileName(files[a]);
-        
-        std::wcout << filename << L"\n";
+        wchar_t* fileData = nullptr;
+        int datalength = 0;
 
-        delete[] filename;
-        buffer = nullptr;
+        GetLocalZipFileDataW2(files[a], fileData, datalength);
+
+        const wchar_t* filename = GetLocalZipFileName(files[a]);
+
+        std::wofstream s(filename, std::ios::binary);
+
+        s.write(fileData, datalength);
+        s.close();
+
+
+        delete filename;
+        filename = nullptr;
     };
+
 
     delete[] buffer;
     buffer = nullptr;
