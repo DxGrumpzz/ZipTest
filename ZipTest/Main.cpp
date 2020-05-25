@@ -8,6 +8,44 @@ typedef uint8_t Byte;
 
 constexpr int PK_SIGNATURE = 0x504b0304;
 
+enum class CompressionMethod
+{
+    None = 0,
+
+    Shrunk = 1,
+
+    ReducedWithCompressionFactor1 = 2,
+    ReducedWithCompressionFactor2 = 3,
+    ReducedWithCompressionFactor3 = 4,
+    ReducedWithCompressionFactor4 = 5,
+
+    Imploded = 6,
+
+    Reserved_1 = 7,
+
+    Deflated = 8,
+
+    EnhancedDeflated = 9,
+
+    PKWareDCLimploded = 10,
+
+    Reserved_2 = 11,
+
+    BZIP2 = 12,
+
+    Reserved_3 = 13,
+
+    LZMA = 14,
+
+    Reserved_4 = 15,
+    Reserved_5 = 16,
+    Reserved_6 = 17,
+
+    IBM_TERSE = 18,
+    IBM_LZ77z = 19,
+
+    PPMd_Version_I_Rev_1 = 98,
+};
 
 const wchar_t* GetLocalZipFileName(std::vector<Byte>& const zipFileData)
 {
@@ -114,7 +152,17 @@ int main()
         indexer++;
     };
 
-    
+
+    Byte comp1 = files[3][8];
+    Byte comp2 = files[3][9];
+
+    short compressionMethod = comp1;
+    if (comp2 != 0)
+    {
+        compressionMethod >>= 8;
+        compressionMethod |= comp2;
+    };
+
     for (int a = 0; a < files.size(); a++)
     {
         wchar_t* fileData = nullptr;
