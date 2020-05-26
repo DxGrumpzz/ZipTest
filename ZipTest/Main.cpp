@@ -8,11 +8,12 @@ typedef uint8_t Byte;
 
 constexpr int PK_SIGNATURE = 0x504b0304;
 
-enum class CompressionMethod
+enum class CompressionMethod : short
 {
     None = 0,
 
     Shrunk = 1,
+    LZW = 1,
 
     ReducedWithCompressionFactor1 = 2,
     ReducedWithCompressionFactor2 = 3,
@@ -162,6 +163,16 @@ int main()
         compressionMethod >>= 8;
         compressionMethod |= comp2;
     };
+
+
+    switch (compressionMethod)
+    {
+        case (short)CompressionMethod::Deflated:
+        {
+
+        };
+    };
+
 
     for (int a = 0; a < files.size(); a++)
     {

@@ -13,13 +13,57 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Zip Compressions">
+      <UniqueIdentifier>{cd771239-cae3-4929-acd7-c7f59221faa5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Zip Compressions\Deflate">
+      <UniqueIdentifier>{39c1f32e-2e10-4974-b071-b86b834b5ac9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="deflate.c">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClCompile>
+    <ClCompile Include="zutil.c">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClCompile>
+    <ClCompile Include="adler32.c">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClCompile>
+    <ClCompile Include="crc32.c">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClCompile>
+    <ClCompile Include="trees.c">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="TestZip.zip" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="deflate.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
+    <ClInclude Include="zutil.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
+    <ClInclude Include="zlib.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
+    <ClInclude Include="zconf.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
+    <ClInclude Include="gzguts.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
+    <ClInclude Include="crc32.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
+    <ClInclude Include="trees.h">
+      <Filter>Zip Compressions\Deflate</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
