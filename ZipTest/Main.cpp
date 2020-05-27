@@ -254,16 +254,23 @@ int main()
                                   endCentralDirectoryOut[18] << 16 |
                                   endCentralDirectoryOut[19] << 24);
 
-    int sig = (zipFileBuffer[20276] |
-               zipFileBuffer[20277] << 8 |
-               zipFileBuffer[20278] << 16 |
-               zipFileBuffer[20279] << 24);
+    int sig = (zipFileBuffer[CentralDirectoryOffset] |
+               zipFileBuffer[CentralDirectoryOffset + 1] << 8 |
+               zipFileBuffer[CentralDirectoryOffset + 2] << 16 |
+               zipFileBuffer[CentralDirectoryOffset + 3] << 24);
 
 
-    if (sig == PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN)
+    if (sig != PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN)
     {
-        int s = 0;
+        __debugbreak();
     };
+
+    short fileNameLength = (zipFileBuffer[CentralDirectoryOffset] |
+                            zipFileBuffer[CentralDirectoryOffset] << 8 |
+                            zipFileBuffer[CentralDirectoryOffset] << 16 |
+                            zipFileBuffer[CentralDirectoryOffset] << 24);
+    __debugbreak();
+
 
     for (int a = 0; a < files.size(); a++)
     {
