@@ -25,6 +25,7 @@ enum class CompressionMethod : short
     None = 0,
 
     Shrunk = 1,
+
     LZW = 1,
 
     ReducedWithCompressionFactor1 = 2,
@@ -275,25 +276,70 @@ int main()
                                      endCentralDirectoryOut[14] << 16 |
                                      endCentralDirectoryOut[15] << 24);
 
+
     std::vector<std::vector<Byte>> centralDirectories;
     GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
 
-    std::vector<Byte> centralDirectory = centralDirectories[0];
-
-    short filenameLength = (centralDirectory[28] |
-                            centralDirectory[29] << 8);
-
-    short extraFieldLength = (centralDirectory[30] |
-                              centralDirectory[31] << 8);
-
-    short fileCommentLength = (centralDirectory[32] |
-                               centralDirectory[33] << 8);
+    std::vector<Byte> centralDirectory = centralDirectories[3];
 
 
-    char* fileName = new char[((size_t)filenameLength + 1)] { 0 };
+    //const short filenameLength = (centralDirectory[28] |
+    //                        centralDirectory[29] << 8);
 
-    strncpy_s(fileName, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&centralDirectory[46]), ((size_t)filenameLength));
+    const int fileHeaderOffset = (centralDirectory[42] |
+                                  centralDirectory[43] << 8 |
+                                  centralDirectory[44] << 16 |
+                                  centralDirectory[45] << 24);
 
+
+    uint8_t* const fileHeaderPointer = &zipFileBuffer[fileHeaderOffset];
+
+
+    const short filenameLength = (fileHeaderPointer[26] |
+                                  fileHeaderPointer[27] << 8);
+
+    const short extraFieldLength = (fileHeaderPointer[28] |
+                                    fileHeaderPointer[29] << 8);
+
+   
+    uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+
+    const short compressionMethod = (fileHeaderPointer[8] |
+                               fileHeaderPointer[9] << 8);
+
+
+    const int compressedSize = (fileHeaderPointer[18] |
+                          fileHeaderPointer[19] << 8 |
+                          fileHeaderPointer[20] << 16 |
+                          fileHeaderPointer[21] << 24);
+
+    const int uncompressedSize = (fileHeaderPointer[22] |
+                            fileHeaderPointer[23] << 8 |
+                            fileHeaderPointer[24] << 16 |
+                            fileHeaderPointer[25] << 24);
+
+
+    switch ((CompressionMethod)compressionMethod)
+    {
+
+        case CompressionMethod::Deflated:
+        {
+            uint8_t* fileData = new uint8_t[compressedSize];
+
+            memcpy_s(fileData, compressedSize, fileHeaderDataPointer, compressedSize);
+
+            __debugbreak();
+
+            break;
+        };
+
+        case CompressionMethod::None:
+        {
+            __debugbreak();
+
+            break;
+        };
+    };
 
 
     __debugbreak();
