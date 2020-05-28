@@ -223,13 +223,8 @@ int main()
 
     uintmax_t zipFileSize = std::filesystem::file_size(zipFilepath);
 
-    uint8_t* zipFileBuffer = new uint8_t[zipFileSize + 0] { 0 };
-
+    uint8_t* zipFileBuffer = new uint8_t[zipFileSize] { 0 };
     fileStream.read((char*)&zipFileBuffer[0], zipFileSize);
-
-
-
-
 
     std::vector<std::vector<Byte>> files;
 
@@ -239,12 +234,16 @@ int main()
 
     int fileIndexer = -1;
 
-
     while (indexer < zipFileSize)
     {
+
         pkSignature = zipFileBuffer[indexer];
         pkSignature <<= 8;
+
+        // Ignoring this warning because apparently it is a bug in Visual Studio's static code analyzer
+        #pragma warning(suppress : 6385)
         pkSignature |= zipFileBuffer[indexer + 1];
+
         pkSignature <<= 8;
         pkSignature |= zipFileBuffer[indexer + 2];
         pkSignature <<= 8;
@@ -295,7 +294,7 @@ int main()
 
     strncpy_s(fileName, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&centralDirectory[46]), ((size_t)filenameLength));
 
-    
+
 
     __debugbreak();
 
