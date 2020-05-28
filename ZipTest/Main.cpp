@@ -127,36 +127,6 @@ void GetLocalZipFileData3(const std::vector<Byte>& zipFileData, Byte*& outData, 
 
 
 
-void GetCentralDirectory(const uint8_t* zipFileData, const int& zipFileDataLength, std::vector<Byte>& outdata)
-{
-    int indexer = zipFileDataLength;
-    int dataIndexer = indexer - 4;
-
-    int pkSignature = 0;
-
-    while (indexer > 0)
-    {
-        pkSignature = zipFileData[dataIndexer];
-        pkSignature <<= 8;
-        pkSignature |= zipFileData[dataIndexer + 1];
-        pkSignature <<= 8;
-        pkSignature |= zipFileData[dataIndexer + 2];
-        pkSignature <<= 8;
-        pkSignature |= zipFileData[dataIndexer + 3];
-
-        outdata.insert(outdata.begin(), zipFileData[indexer - 1]);
-
-        if (pkSignature == PK_CENTRAL_DIRECTORY_SIGNATURE)
-        {
-            return;
-        };
-
-        dataIndexer--;
-        indexer--;
-    };
-};
-
-
 void GetEndCentralDirectory(const uint8_t* zipFileData, const int& zipFileDataLength, std::vector<Byte>& outdata)
 {
     int indexer = zipFileDataLength;
@@ -191,6 +161,49 @@ void GetEndCentralDirectory(const uint8_t* zipFileData, const int& zipFileDataLe
 };
 
 
+void GetCentralDirectory(uint8_t* zipFileData, const int& zipFileDataLength, const int& centralDirectoryOffset, const int& centralDirectorySize, std::vector<Byte>& centralDirectoryOut)
+{
+    uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
+
+    for (int a = 0; a < centralDirectorySize; a++)
+    {
+        centralDirectoryOut.emplace_back(*centralDirectoryPointer);
+        centralDirectoryPointer++;
+    };
+
+};
+
+
+
+void GetCentralDirectories(uint8_t* zipFileData, const int& zipFileDataLength, const int& centralDirectoryOffset, std::vector<std::vector<Byte>>& centralDirectoriesOut)
+{
+    uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
+    const uint8_t const* const centralDirectoryPointerEnd = &zipFileData[zipFileDataLength];
+
+    int centralDirectoySignature = 0;
+    int indexer = 0;
+
+
+    while (centralDirectoryPointer != centralDirectoryPointerEnd)
+    {
+        centralDirectoySignature = (*centralDirectoryPointer |
+                                    *(centralDirectoryPointer + 1) << 8 |
+                                    *(centralDirectoryPointer + 2) << 16 |
+                                    *(centralDirectoryPointer + 3) << 24);
+
+
+        if (centralDirectoySignature == PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN)
+        {
+            centralDirectoriesOut.emplace_back(std::vector<Byte>());
+        };
+
+        (*(centralDirectoriesOut.end() - 1)).emplace_back(*centralDirectoryPointer);
+        centralDirectoryPointer++;
+    };
+
+};
+
+
 int main()
 {
     const wchar_t* zipFilepath = L"TestZip1.zip";
@@ -214,6 +227,10 @@ int main()
     uint8_t* zipFileBuffer = new uint8_t[zipFileSize + 0] { 0 };
 
     fileStream.read((char*)&zipFileBuffer[0], zipFileSize);
+
+
+
+
 
     std::vector<std::vector<Byte>> files;
 
@@ -249,28 +266,41 @@ int main()
     std::vector<Byte> endCentralDirectoryOut;
     GetEndCentralDirectory(zipFileBuffer, zipFileSize, endCentralDirectoryOut);
 
-    int CentralDirectoryOffset = (endCentralDirectoryOut[16] |
+
+    int centralDirectoryOffset = (endCentralDirectoryOut[16] |
                                   endCentralDirectoryOut[17] << 8 |
                                   endCentralDirectoryOut[18] << 16 |
                                   endCentralDirectoryOut[19] << 24);
 
-    int sig = (zipFileBuffer[CentralDirectoryOffset] |
-               zipFileBuffer[CentralDirectoryOffset + 1] << 8 |
-               zipFileBuffer[CentralDirectoryOffset + 2] << 16 |
-               zipFileBuffer[CentralDirectoryOffset + 3] << 24);
+    int centralDirectorySizeBytes = (endCentralDirectoryOut[12] |
+                                     endCentralDirectoryOut[13] << 8 |
+                                     endCentralDirectoryOut[14] << 16 |
+                                     endCentralDirectoryOut[15] << 24);
+
+    std::vector<std::vector<Byte>> centralDirectories;
+    GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
+
+    std::vector<Byte> centralDirectory = centralDirectories[0];
+
+    short filenameLength = (centralDirectory[28] |
+                            centralDirectory[29] << 8);
+
+    short extraFieldLength = (centralDirectory[30] |
+                              centralDirectory[31] << 8);
+
+    short fileCommentLength = (centralDirectory[32] |
+                               centralDirectory[33] << 8);
 
 
-    if (sig != PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN)
+    wchar_t* fileName = new wchar_t[filenameLength + 1] { 0 };
+
+    for (int a = 0; a < filenameLength; a++)
     {
-        __debugbreak();
+        fileName[a] = centralDirectory[46 + a];
     };
 
-    short fileNameLength = (zipFileBuffer[CentralDirectoryOffset] |
-                            zipFileBuffer[CentralDirectoryOffset] << 8 |
-                            zipFileBuffer[CentralDirectoryOffset] << 16 |
-                            zipFileBuffer[CentralDirectoryOffset] << 24);
-    __debugbreak();
 
+    __debugbreak();
 
     for (int a = 0; a < files.size(); a++)
     {
