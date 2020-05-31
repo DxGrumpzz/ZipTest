@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <cmath>
 
+#include "deflate.h"
+
 typedef uint8_t Byte;
 
 constexpr int PK_FILE_HEADER_SIGNATURE = 0x504b0304;
@@ -280,11 +282,8 @@ int main()
     std::vector<std::vector<Byte>> centralDirectories;
     GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
 
+
     std::vector<Byte> centralDirectory = centralDirectories[3];
-
-
-    //const short filenameLength = (centralDirectory[28] |
-    //                        centralDirectory[29] << 8);
 
     const int fileHeaderOffset = (centralDirectory[42] |
                                   centralDirectory[43] << 8 |
@@ -301,22 +300,29 @@ int main()
     const short extraFieldLength = (fileHeaderPointer[28] |
                                     fileHeaderPointer[29] << 8);
 
-   
-    uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+
 
     const short compressionMethod = (fileHeaderPointer[8] |
-                               fileHeaderPointer[9] << 8);
+                                     fileHeaderPointer[9] << 8);
+
+
+    const unsigned int crc32Hash = (fileHeaderPointer[14] |
+                                    fileHeaderPointer[15] << 8 |
+                                    fileHeaderPointer[16] << 16 |
+                                    fileHeaderPointer[17] << 24);
 
 
     const int compressedSize = (fileHeaderPointer[18] |
-                          fileHeaderPointer[19] << 8 |
-                          fileHeaderPointer[20] << 16 |
-                          fileHeaderPointer[21] << 24);
+                                fileHeaderPointer[19] << 8 |
+                                fileHeaderPointer[20] << 16 |
+                                fileHeaderPointer[21] << 24);
+
 
     const int uncompressedSize = (fileHeaderPointer[22] |
-                            fileHeaderPointer[23] << 8 |
-                            fileHeaderPointer[24] << 16 |
-                            fileHeaderPointer[25] << 24);
+                                  fileHeaderPointer[23] << 8 |
+                                  fileHeaderPointer[24] << 16 |
+                                  fileHeaderPointer[25] << 24);
+
 
 
     switch ((CompressionMethod)compressionMethod)
@@ -324,9 +330,31 @@ int main()
 
         case CompressionMethod::Deflated:
         {
-            uint8_t* fileData = new uint8_t[compressedSize];
+            uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
 
-            memcpy_s(fileData, compressedSize, fileHeaderDataPointer, compressedSize);
+            uint8_t* fileDataBuffer = new uint8_t[((size_t)uncompressedSize + 2)] { 0 };
+            fileDataBuffer[0] = 0x78;
+            fileDataBuffer[1] = 0xDA;
+
+            memcpy_s(fileDataBuffer + 2, uncompressedSize, fileHeaderDataPointer, uncompressedSize);
+
+            uint8_t* uncompressedFileData = new uint8_t[uncompressedSize] { 0 };
+            uLong uncompressedFileSize = static_cast<uLong>(uncompressedSize);
+
+
+            //int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileHeaderDataPointer, compressedSize);
+            int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
+
+
+            if (result != Z_OK)
+            {
+                __debugbreak();
+            };
+
+            std::ofstream output("b.exe", std::ios::binary);
+
+            output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
+            output.close();
 
             __debugbreak();
 
