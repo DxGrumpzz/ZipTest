@@ -283,7 +283,7 @@ int main()
     GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
 
 
-    std::vector<Byte> centralDirectory = centralDirectories[3];
+    std::vector<Byte> centralDirectory = centralDirectories[4];
 
     const int fileHeaderOffset = (centralDirectory[42] |
                                   centralDirectory[43] << 8 |
@@ -342,16 +342,14 @@ int main()
             uLong uncompressedFileSize = static_cast<uLong>(uncompressedSize);
 
 
-            //int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileHeaderDataPointer, compressedSize);
             int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
 
+          
+            char* filename = new char[((size_t)filenameLength + 1)] { 0 };
 
-            if (result != Z_OK)
-            {
-                __debugbreak();
-            };
+            memcpy_s(filename, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
-            std::ofstream output("b.exe", std::ios::binary);
+            std::ofstream output(filename, std::ios::binary);
 
             output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
             output.close();
@@ -363,6 +361,17 @@ int main()
 
         case CompressionMethod::None:
         {
+            uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+
+            char* filename = new char[((size_t)filenameLength + 1)] { 0 };
+
+            memcpy_s(filename, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+
+            std::ofstream output(filename, std::ios::binary);
+
+            output.write(reinterpret_cast<char*>(&fileHeaderDataPointer[0]), uncompressedSize);
+            output.close();
+
             __debugbreak();
 
             break;
