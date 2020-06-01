@@ -99,19 +99,6 @@ void GetEndCentralDirectory(const uint8_t* zipFileData, const uintmax_t& zipFile
 };
 
 
-void GetCentralDirectory(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const int& centralDirectoryOffset, const int& centralDirectorySize, std::vector<Byte>& centralDirectoryOut)
-{
-    uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
-
-    for (int a = 0; a < centralDirectorySize; a++)
-    {
-        centralDirectoryOut.emplace_back(*centralDirectoryPointer);
-        centralDirectoryPointer++;
-    };
-
-};
-
-
 void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const int& centralDirectoryOffset, std::vector<std::vector<Byte>>& centralDirectoriesOut)
 {
     uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
@@ -139,9 +126,12 @@ void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLen
 };
 
 
+
 int main()
 {
-    const wchar_t* zipFilepath = L"TestZip1.zip";
+    const wchar_t* zipFilepath = L"TestZip2.zip";
+
+    const char* zipOutFilepath = "ZipTest out";
 
     std::ifstream fileStream(zipFilepath, std::ios::binary);
 
@@ -277,17 +267,58 @@ int main()
 
             int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
 
-          
             char* filename = new char[((size_t)filenameLength + 1)] { 0 };
-
             memcpy_s(filename, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
-            std::ofstream output(filename, std::ios::binary);
+
+            size_t slashCount = 0;
+          
+            char* fileNamePointer = filename;
+            while (*fileNamePointer != '\0')
+            {
+                if (*fileNamePointer == '/')
+                {
+                    slashCount++;
+                };
+
+                fileNamePointer++;
+            };
+
+
+            if (slashCount > 0)
+            {
+                std::filesystem::path filepath(zipOutFilepath);
+                filepath.append(filename);
+                filepath.remove_filename();
+                filepath.make_preferred();
+
+                std::filesystem::create_directories(filepath);
+            };
+
+            std::string outputString;
+            outputString.append(zipOutFilepath);
+            outputString.append("/");
+            outputString.append(filename);
+
+
+
+            std::ofstream output(outputString, std::ios::binary);
 
             output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
             output.close();
 
+
             __debugbreak();
+
+
+            delete[] filename;
+            filename = nullptr;
+
+            delete[] uncompressedFileData;
+            uncompressedFileData = nullptr;
+
+            delete[] fileDataBuffer;
+            fileDataBuffer = nullptr;
 
             break;
         };
@@ -300,12 +331,47 @@ int main()
 
             memcpy_s(filename, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
-            std::ofstream output(filename, std::ios::binary);
+
+            size_t slashCount = 0;
+
+            char* fileNamePointer = filename;
+            while (*fileNamePointer != '\0')
+            {
+                if (*fileNamePointer == '/')
+                {
+                    slashCount++;
+                };
+
+                fileNamePointer++;
+    };
+
+
+            if (slashCount > 0)
+            {
+                std::filesystem::path filepath(zipOutFilepath);
+                filepath.append(filename);
+                filepath.remove_filename();
+                filepath.make_preferred();
+
+                std::filesystem::create_directories(filepath);
+            };
+
+
+            std::string outputString;
+            outputString.append(zipOutFilepath);
+            outputString.append("/");
+            outputString.append(filename);
+
+
+            std::ofstream output(outputString, std::ios::binary);
 
             output.write(reinterpret_cast<char*>(&fileHeaderDataPointer[0]), uncompressedSize);
             output.close();
 
             __debugbreak();
+
+            delete[] filename;
+        filename = nullptr;
 
             break;
         };
@@ -313,25 +379,6 @@ int main()
 
 
     __debugbreak();
-
-    for (int a = 0; a < files.size(); a++)
-    {
-        wchar_t* fileData = nullptr;
-        size_t datalength = 0;
-
-        GetLocalZipFileDataW2(files[a], fileData, datalength);
-
-        const wchar_t* filename = GetLocalZipFileName(files[a]);
-
-        std::wofstream s(filename, std::ios::binary);
-
-        s.write(fileData, datalength);
-        s.close();
-
-
-        delete filename;
-        filename = nullptr;
-    };
 
 
     delete[] zipFileBuffer;
