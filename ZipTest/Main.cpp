@@ -7,19 +7,15 @@
 
 #include "deflate.h"
 
-typedef uint8_t Byte;
+
 
 constexpr int PK_FILE_HEADER_SIGNATURE = 0x504b0304;
 
-constexpr int PK_FILE_HEADER_SIGNATURE_LITTLE_ENDIAN = 0x04034b50;
-
-constexpr int PK_CENTRAL_DIRECTORY_SIGNATURE = 0x504b0102;
-
-// Little endian version of the central directory signature
 constexpr int PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN = 0x2014B50;
 
-
 constexpr int PK_END_OF_CENTRAL_DIRECTORY = 0x504b0506;
+
+const char* zipOutFilepath = "ZipTest out";
 
 
 enum class CompressionMethod : short
@@ -65,7 +61,7 @@ enum class CompressionMethod : short
 
 
 
-void GetEndCentralDirectory(const uint8_t* zipFileData, const uintmax_t& zipFileDataLength, std::vector<Byte>& outdata)
+void GetEndCentralDirectory(const uint8_t* zipFileData, const uintmax_t& zipFileDataLength, std::vector<uint8_t>& outdata)
 {
     uintmax_t indexer = zipFileDataLength;
     uintmax_t dataIndexer = indexer - 4;
@@ -99,7 +95,7 @@ void GetEndCentralDirectory(const uint8_t* zipFileData, const uintmax_t& zipFile
 };
 
 
-void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const int& centralDirectoryOffset, std::vector<std::vector<Byte>>& centralDirectoriesOut)
+void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const int& centralDirectoryOffset, std::vector<std::vector<uint8_t>>& centralDirectoriesOut)
 {
     uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
     uint8_t const* const centralDirectoryPointerEnd = &zipFileData[zipFileDataLength];
@@ -116,7 +112,7 @@ void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLen
 
         if (centralDirectoySignature == PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN)
         {
-            centralDirectoriesOut.emplace_back(std::vector<Byte>());
+            centralDirectoriesOut.emplace_back(std::vector<uint8_t>());
         };
 
         (*(centralDirectoriesOut.end() - 1)).emplace_back(*centralDirectoryPointer);
@@ -127,94 +123,9 @@ void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLen
 
 
 
-int main()
+void ExtractSingleFile(uint8_t* zipFileData, const int& fileHeaderOffset)
 {
-    const wchar_t* zipFilepath = L"TestZip2.zip";
-
-    const char* zipOutFilepath = "ZipTest out";
-
-    std::ifstream fileStream(zipFilepath, std::ios::binary);
-
-    if (fileStream.is_open() == false)
-    {
-        throw std::exception("Error opening file");
-        return 0;
-    };
-
-    if (fileStream.good() == false)
-    {
-        throw std::exception("File error");
-        return 0;
-    };
-
-    uintmax_t zipFileSize = std::filesystem::file_size(zipFilepath);
-
-    uint8_t* zipFileBuffer = new uint8_t[zipFileSize] { 0 };
-    fileStream.read((char*)&zipFileBuffer[0], zipFileSize);
-
-    std::vector<std::vector<Byte>> files;
-
-    int pkSignature = 0;
-
-    uintmax_t indexer = 0;
-
-    int fileIndexer = -1;
-
-    while (indexer < zipFileSize)
-    {
-
-        pkSignature = zipFileBuffer[indexer];
-        pkSignature <<= 8;
-
-        // Ignoring this warning because apparently it is a bug in Visual Studio's static code analyzer
-        #pragma warning(suppress : 6385)
-        pkSignature |= zipFileBuffer[indexer + 1];
-
-        pkSignature <<= 8;
-        pkSignature |= zipFileBuffer[indexer + 2];
-        pkSignature <<= 8;
-        pkSignature |= zipFileBuffer[indexer + 3];
-
-        if (pkSignature == PK_FILE_HEADER_SIGNATURE)
-        {
-            files.push_back(std::vector<Byte>());
-            fileIndexer++;
-        };
-
-        files[fileIndexer].emplace_back(zipFileBuffer[indexer]);
-
-        indexer++;
-    };
-
-
-    std::vector<Byte> endCentralDirectoryOut;
-    GetEndCentralDirectory(zipFileBuffer, zipFileSize, endCentralDirectoryOut);
-
-
-    int centralDirectoryOffset = (endCentralDirectoryOut[16] |
-                                  endCentralDirectoryOut[17] << 8 |
-                                  endCentralDirectoryOut[18] << 16 |
-                                  endCentralDirectoryOut[19] << 24);
-
-    int centralDirectorySizeBytes = (endCentralDirectoryOut[12] |
-                                     endCentralDirectoryOut[13] << 8 |
-                                     endCentralDirectoryOut[14] << 16 |
-                                     endCentralDirectoryOut[15] << 24);
-
-
-    std::vector<std::vector<Byte>> centralDirectories;
-    GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
-
-
-    std::vector<Byte> centralDirectory = centralDirectories[4];
-
-    const int fileHeaderOffset = (centralDirectory[42] |
-                                  centralDirectory[43] << 8 |
-                                  centralDirectory[44] << 16 |
-                                  centralDirectory[45] << 24);
-
-
-    uint8_t* const fileHeaderPointer = &zipFileBuffer[fileHeaderOffset];
+    uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
 
 
     const short filenameLength = (fileHeaderPointer[26] |
@@ -227,12 +138,6 @@ int main()
 
     const short compressionMethod = (fileHeaderPointer[8] |
                                      fileHeaderPointer[9] << 8);
-
-
-    const unsigned int crc32Hash = (fileHeaderPointer[14] |
-                                    fileHeaderPointer[15] << 8 |
-                                    fileHeaderPointer[16] << 16 |
-                                    fileHeaderPointer[17] << 24);
 
 
     const int compressedSize = (fileHeaderPointer[18] |
@@ -255,7 +160,7 @@ int main()
         {
             uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
 
-            uint8_t* fileDataBuffer = new uint8_t[((size_t)uncompressedSize + 2)] { 0 };
+            uint8_t* fileDataBuffer = new uint8_t[static_cast<size_t>(uncompressedSize) + 2] { 0 };
             fileDataBuffer[0] = 0x78;
             fileDataBuffer[1] = 0xDA;
 
@@ -267,12 +172,12 @@ int main()
 
             int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
 
-            char* filename = new char[((size_t)filenameLength + 1)] { 0 };
-            memcpy_s(filename, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+            char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
+            memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
 
             size_t slashCount = 0;
-          
+
             char* fileNamePointer = filename;
             while (*fileNamePointer != '\0')
             {
@@ -323,13 +228,14 @@ int main()
             break;
         };
 
+
         case CompressionMethod::None:
         {
             uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
 
-            char* filename = new char[((size_t)filenameLength + 1)] { 0 };
+            char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
 
-            memcpy_s(filename, ((size_t)filenameLength + 1), reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+            memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
 
             size_t slashCount = 0;
@@ -343,7 +249,7 @@ int main()
                 };
 
                 fileNamePointer++;
-    };
+            };
 
 
             if (slashCount > 0)
@@ -371,11 +277,111 @@ int main()
             __debugbreak();
 
             delete[] filename;
-        filename = nullptr;
+            filename = nullptr;
 
             break;
         };
+
     };
+};
+
+
+
+int main()
+{
+    const bool loadLockedZip = false;
+
+    const wchar_t* zipFilepath;
+
+    if (loadLockedZip == true)
+        zipFilepath = L"Locked ZipTest.zip";
+    else
+        zipFilepath = L"ZipTest.zip";
+
+
+
+    std::ifstream fileStream(zipFilepath, std::ios::binary);
+
+
+    if (fileStream.is_open() == false)
+    {
+        throw std::exception("Error opening file");
+        return 0;
+    };
+
+    if (fileStream.good() == false)
+    {
+        throw std::exception("File error");
+        return 0;
+    };
+
+
+    uintmax_t zipFileSize = std::filesystem::file_size(zipFilepath);
+
+    uint8_t* zipFileBuffer = new uint8_t[zipFileSize] { 0 };
+    fileStream.read((char*)&zipFileBuffer[0], zipFileSize);
+
+    std::vector<std::vector<uint8_t>> files;
+
+    int pkSignature = 0;
+
+    uintmax_t indexer = 0;
+
+    int fileIndexer = -1;
+
+    while (indexer < zipFileSize)
+    {
+
+        pkSignature = zipFileBuffer[indexer];
+        pkSignature <<= 8;
+
+        // Ignoring this warning because apparently it is a bug in Visual Studio's static code analyzer
+        #pragma warning(suppress : 6385)
+        pkSignature |= zipFileBuffer[indexer + 1];
+
+        pkSignature <<= 8;
+        pkSignature |= zipFileBuffer[indexer + 2];
+        pkSignature <<= 8;
+        pkSignature |= zipFileBuffer[indexer + 3];
+
+
+        if (pkSignature == PK_FILE_HEADER_SIGNATURE)
+        {
+            files.push_back(std::vector<uint8_t>());
+            fileIndexer++;
+        };
+
+        files[fileIndexer].emplace_back(zipFileBuffer[indexer]);
+
+        indexer++;
+    };
+
+
+    std::vector<uint8_t> endCentralDirectoryOut;
+    GetEndCentralDirectory(zipFileBuffer, zipFileSize, endCentralDirectoryOut);
+
+
+    int centralDirectoryOffset = (endCentralDirectoryOut[16] |
+                                  endCentralDirectoryOut[17] << 8 |
+                                  endCentralDirectoryOut[18] << 16 |
+                                  endCentralDirectoryOut[19] << 24);
+
+    std::vector<std::vector<uint8_t>> centralDirectories;
+    GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
+
+
+
+
+    const std::vector<uint8_t> centralDirectory = centralDirectories[1];
+
+
+    const int fileHeaderOffset = (centralDirectory[42] |
+                                  centralDirectory[43] << 8 |
+                                  centralDirectory[44] << 16 |
+                                  centralDirectory[45] << 24);
+
+
+    ExtractSingleFile(zipFileBuffer, fileHeaderOffset);
 
 
     __debugbreak();
