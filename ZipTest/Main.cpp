@@ -18,6 +18,7 @@ constexpr int PK_END_OF_CENTRAL_DIRECTORY = 0x504b0506;
 const char* zipOutFilepath = "ZipTest out";
 
 
+
 enum class CompressionMethod : short
 {
     None = 0,
@@ -57,6 +58,14 @@ enum class CompressionMethod : short
     IBM_LZ77z = 19,
 
     PPMd_Version_I_Rev_1 = 98,
+};
+
+
+enum class ZipEncryption
+{
+    None = 0,
+    AES = 1,
+    ZipCrypto = 2,
 };
 
 
@@ -123,7 +132,7 @@ void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLen
 
 
 
-void ExtractSingleFile(uint8_t* zipFileData, const int& fileHeaderOffset)
+void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption encryptionType)
 {
     uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
 
@@ -152,10 +161,16 @@ void ExtractSingleFile(uint8_t* zipFileData, const int& fileHeaderOffset)
                                   fileHeaderPointer[25] << 24);
 
 
+    const uint16_t generalPurposeFlag = (fileHeaderPointer[6] |
+                                         fileHeaderPointer[7] << 8);
+
+
+    uint8_t* extraField = new uint8_t[extraFieldLength] { 0 };
+
+    memcpy_s(extraField, extraFieldLength, &fileHeaderPointer[static_cast<size_t>(filenameLength) + 30], extraFieldLength);
 
     switch ((CompressionMethod)compressionMethod)
     {
-
         case CompressionMethod::Deflated:
         {
             uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
@@ -286,6 +301,33 @@ void ExtractSingleFile(uint8_t* zipFileData, const int& fileHeaderOffset)
 };
 
 
+ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
+{
+    const unsigned short generalPurposeBitFlag = (centralDirectory[8] |
+                                                  centralDirectory[9] << 8);
+
+    bool isEncrypted = generalPurposeBitFlag & 1 << 0;
+
+
+    const unsigned short compressionMethod = (centralDirectory[10] |
+                                              centralDirectory[11] << 8);
+
+
+    const unsigned int crc32 = (centralDirectory[16] |
+                                centralDirectory[17]);
+
+    if ((isEncrypted == true) &&
+        (compressionMethod == 99) &&
+        (crc32 == 0))
+    {
+        return ZipEncryption::AES;
+    }
+    else
+    {
+        return ZipEncryption::None;
+    };
+};
+
 
 int main()
 {
@@ -294,7 +336,8 @@ int main()
     const wchar_t* zipFilepath;
 
     if (loadLockedZip == true)
-        zipFilepath = L"Locked ZipTest.zip";
+        zipFilepath = L"ZipTest AES.zip";
+    // zipFilepath = L"ZipTest ZipCrypto.zip";
     else
         zipFilepath = L"ZipTest.zip";
 
@@ -370,9 +413,8 @@ int main()
     GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
 
 
+    const std::vector<uint8_t> centralDirectory = centralDirectories[2];
 
-
-    const std::vector<uint8_t> centralDirectory = centralDirectories[1];
 
 
     const int fileHeaderOffset = (centralDirectory[42] |
@@ -380,8 +422,9 @@ int main()
                                   centralDirectory[44] << 16 |
                                   centralDirectory[45] << 24);
 
+    ZipEncryption encryptionType = GetEncryptionType(centralDirectory);
 
-    ExtractSingleFile(zipFileBuffer, fileHeaderOffset);
+    ExtractSingleFile(zipFileBuffer, fileHeaderOffset, encryptionType);
 
 
     __debugbreak();
