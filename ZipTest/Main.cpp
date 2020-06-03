@@ -5,9 +5,12 @@
 #include <assert.h>
 #include <cmath>
 
+#include "aes256.hpp"
+
 #include "deflate.h"
 
-
+#undef _CRT_SECURE_NO_DEPRECATE  
+#undef _CRT_NONSTDC_NO_DEPRECATE
 
 constexpr int PK_FILE_HEADER_SIGNATURE = 0x504b0304;
 
@@ -132,6 +135,7 @@ void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLen
 
 
 
+
 void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption encryptionType)
 {
     uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
@@ -144,15 +148,26 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
                                     fileHeaderPointer[29] << 8);
 
 
+    uint8_t* extraField = new uint8_t[extraFieldLength] { 0 };
+    memcpy_s(extraField, extraFieldLength, &fileHeaderPointer[static_cast<size_t>(filenameLength) + 30], extraFieldLength);
 
-    const short compressionMethod = (fileHeaderPointer[8] |
-                                     fileHeaderPointer[9] << 8);
 
+    short compressionMethod = 0;
+    if (encryptionType == ZipEncryption::None)
+    {
+        compressionMethod = (fileHeaderPointer[8] |
+                             fileHeaderPointer[9] << 8);
+    }
+    else if (encryptionType == ZipEncryption::AES)
+    {
+        compressionMethod = (extraField[static_cast<short>(9)] |
+                             extraField[static_cast<short>(10)] << 8);
+    };
 
-    const int compressedSize = (fileHeaderPointer[18] |
-                                fileHeaderPointer[19] << 8 |
-                                fileHeaderPointer[20] << 16 |
-                                fileHeaderPointer[21] << 24);
+    const size_t compressedSize = (fileHeaderPointer[18] |
+                                   fileHeaderPointer[19] << 8 |
+                                   fileHeaderPointer[20] << 16 |
+                                   fileHeaderPointer[21] << 24);
 
 
     const int uncompressedSize = (fileHeaderPointer[22] |
@@ -165,80 +180,162 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
                                          fileHeaderPointer[7] << 8);
 
 
-    uint8_t* extraField = new uint8_t[extraFieldLength] { 0 };
-
-    memcpy_s(extraField, extraFieldLength, &fileHeaderPointer[static_cast<size_t>(filenameLength) + 30], extraFieldLength);
 
     switch ((CompressionMethod)compressionMethod)
     {
         case CompressionMethod::Deflated:
         {
-            uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
 
-            uint8_t* fileDataBuffer = new uint8_t[static_cast<size_t>(uncompressedSize) + 2] { 0 };
-            fileDataBuffer[0] = 0x78;
-            fileDataBuffer[1] = 0xDA;
-
-            memcpy_s(fileDataBuffer + 2, uncompressedSize, fileHeaderDataPointer, uncompressedSize);
-
-            uint8_t* uncompressedFileData = new uint8_t[uncompressedSize] { 0 };
-            uLong uncompressedFileSize = static_cast<uLong>(uncompressedSize);
-
-
-            int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
-
-            char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
-            memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
-
-
-            size_t slashCount = 0;
-
-            char* fileNamePointer = filename;
-            while (*fileNamePointer != '\0')
+            if (encryptionType == ZipEncryption::None)
             {
-                if (*fileNamePointer == '/')
+                uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+
+                uint8_t* fileDataBuffer = new uint8_t[static_cast<size_t>(uncompressedSize) + 2] { 0 };
+                fileDataBuffer[0] = 0x78;
+                fileDataBuffer[1] = 0xDA;
+
+                memcpy_s(fileDataBuffer + 2, uncompressedSize, fileHeaderDataPointer, uncompressedSize);
+
+                uint8_t* uncompressedFileData = new uint8_t[uncompressedSize] { 0 };
+                uLong uncompressedFileSize = static_cast<uLong>(uncompressedSize);
+
+
+                int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
+
+                char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
+                memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+
+
+                size_t slashCount = 0;
+
+                char* fileNamePointer = filename;
+                while (*fileNamePointer != '\0')
                 {
-                    slashCount++;
+                    if (*fileNamePointer == '/')
+                    {
+                        slashCount++;
+                    };
+
+                    fileNamePointer++;
                 };
 
-                fileNamePointer++;
-            };
+
+                if (slashCount > 0)
+                {
+                    std::filesystem::path filepath(zipOutFilepath);
+                    filepath.append(filename);
+                    filepath.remove_filename();
+                    filepath.make_preferred();
+
+                    std::filesystem::create_directories(filepath);
+                };
+
+                std::string outputString;
+                outputString.append(zipOutFilepath);
+                outputString.append("/");
+                outputString.append(filename);
 
 
-            if (slashCount > 0)
+
+                std::ofstream output(outputString, std::ios::binary);
+
+                output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
+                output.close();
+
+
+                __debugbreak();
+
+
+                delete[] filename;
+                filename = nullptr;
+
+                delete[] uncompressedFileData;
+                uncompressedFileData = nullptr;
+
+                delete[] fileDataBuffer;
+                fileDataBuffer = nullptr;
+            }
+            else if (encryptionType == ZipEncryption::AES)
             {
-                std::filesystem::path filepath(zipOutFilepath);
-                filepath.append(filename);
-                filepath.remove_filename();
-                filepath.make_preferred();
+                uint8_t* encryptedFileDataBuffer = new uint8_t[static_cast<size_t>(compressedSize)] { 0 };
 
-                std::filesystem::create_directories(filepath);
+                uint8_t* fileDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+                uint8_t* fileDataPointerEnd = &fileDataPointer[compressedSize];
+
+                memcpy_s(encryptedFileDataBuffer, compressedSize, fileDataPointer, compressedSize);
+
+
+                std::vector<unsigned char> key("rwg123", "rwg123" + 7);
+
+                std::vector<unsigned char> decryptedFileData;
+                std::vector<unsigned char> encryptedFileData(encryptedFileDataBuffer, encryptedFileDataBuffer + compressedSize);
+
+                Aes256::decrypt(key, encryptedFileData, decryptedFileData);
+
+                decryptedFileData.insert(decryptedFileData.begin(), 0xDA);
+                decryptedFileData.insert(decryptedFileData.begin(), 0x78);
+
+
+                uint8_t* decryptedData = new uint8_t[compressedSize] { 0 };
+                uint8_t* uncompressedFileData = new uint8_t[uncompressedSize] { 0 };
+
+                memcpy_s(decryptedData, compressedSize, &decryptedFileData[0], compressedSize);
+                uLong uncompressedFileSize = 0;
+
+                int result = uncompress(uncompressedFileData, &uncompressedFileSize, decryptedData, compressedSize + 2);
+
+                char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
+                memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+
+
+                size_t slashCount = 0;
+
+                char* fileNamePointer = filename;
+                while (*fileNamePointer != '\0')
+                {
+                    if (*fileNamePointer == '/')
+                    {
+                        slashCount++;
+                    };
+
+                    fileNamePointer++;
+                };
+
+
+                if (slashCount > 0)
+                {
+                    std::filesystem::path filepath(zipOutFilepath);
+                    filepath.append(filename);
+                    filepath.remove_filename();
+                    filepath.make_preferred();
+
+                    std::filesystem::create_directories(filepath);
+                };
+
+                std::string outputString;
+                outputString.append(zipOutFilepath);
+                outputString.append("/");
+                outputString.append(filename);
+
+
+
+                std::ofstream output(outputString, std::ios::binary);
+
+                output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
+                output.close();
+
+
+                __debugbreak();
+
+
+                delete[] filename;
+                filename = nullptr;
+
+                delete[] uncompressedFileData;
+                uncompressedFileData = nullptr;
+
+                __debugbreak();
             };
-
-            std::string outputString;
-            outputString.append(zipOutFilepath);
-            outputString.append("/");
-            outputString.append(filename);
-
-
-
-            std::ofstream output(outputString, std::ios::binary);
-
-            output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
-            output.close();
-
-
-            __debugbreak();
-
-
-            delete[] filename;
-            filename = nullptr;
-
-            delete[] uncompressedFileData;
-            uncompressedFileData = nullptr;
-
-            delete[] fileDataBuffer;
-            fileDataBuffer = nullptr;
 
             break;
         };
@@ -246,53 +343,114 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
 
         case CompressionMethod::None:
         {
-            uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
-
-            char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
-
-            memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
-
-
-            size_t slashCount = 0;
-
-            char* fileNamePointer = filename;
-            while (*fileNamePointer != '\0')
+            if (encryptionType == ZipEncryption::None)
             {
-                if (*fileNamePointer == '/')
+                uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+
+                char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
+
+                memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+
+
+                size_t slashCount = 0;
+
+                char* fileNamePointer = filename;
+                while (*fileNamePointer != '\0')
                 {
-                    slashCount++;
+                    if (*fileNamePointer == '/')
+                    {
+                        slashCount++;
+                    };
+
+                    fileNamePointer++;
                 };
 
-                fileNamePointer++;
-            };
+
+                if (slashCount > 0)
+                {
+                    std::filesystem::path filepath(zipOutFilepath);
+                    filepath.append(filename);
+                    filepath.remove_filename();
+                    filepath.make_preferred();
+
+                    std::filesystem::create_directories(filepath);
+                };
 
 
-            if (slashCount > 0)
+                std::string outputString;
+                outputString.append(zipOutFilepath);
+                outputString.append("/");
+                outputString.append(filename);
+
+
+                std::ofstream output(outputString, std::ios::binary);
+
+                output.write(reinterpret_cast<char*>(&fileHeaderDataPointer[0]), uncompressedSize);
+                output.close();
+
+                __debugbreak();
+
+                delete[] filename;
+                filename = nullptr;
+            }
+            else if (encryptionType == ZipEncryption::AES)
             {
-                std::filesystem::path filepath(zipOutFilepath);
-                filepath.append(filename);
-                filepath.remove_filename();
-                filepath.make_preferred();
+                const char* aesKey = "rwg123";
+                const size_t aesKeyLength = strlen(aesKey);
 
-                std::filesystem::create_directories(filepath);
+                uint8_t* const fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
+                uint8_t* fileHeaderDataPointerEnd = &fileHeaderDataPointer[uncompressedSize];
+
+                uint8_t aesLength = extraField[8];
+
+                // 128 bit
+                if (aesLength == 1)
+                {
+
+                }
+                // 192 bit
+                else if (aesLength == 2)
+                {
+
+                }
+                // 256 bit
+                else if (aesLength == 3)
+                {
+                    const uint8_t saltSizeInBytes = 16;
+
+                    uint8_t salt[saltSizeInBytes] { 0 };
+
+                    memcpy_s(salt, saltSizeInBytes, fileHeaderDataPointer, saltSizeInBytes);
+
+
+                    uint16_t passwordVerificationValue = (fileHeaderDataPointer[saltSizeInBytes] |
+                                                          fileHeaderDataPointer[saltSizeInBytes + 1]);
+
+
+                    const size_t fileDataOffset = saltSizeInBytes + 2;
+
+
+                    uint8_t* encryptedFileData = new uint8_t[uncompressedSize] { 0 };
+
+                    memcpy_s(encryptedFileData, uncompressedSize, &fileHeaderDataPointer[fileDataOffset], uncompressedSize);
+
+
+                    std::vector<unsigned char> key(aesKey, aesKey + aesKeyLength);
+                    std::vector<unsigned char> encryptedData(encryptedFileData, encryptedFileData + uncompressedSize);
+                    std::vector<unsigned char> decryptedData;
+
+                    Aes256::decrypt(key, encryptedData, decryptedData);
+
+                    __debugbreak();
+
+                    delete[] encryptedFileData;
+                    encryptedFileData = nullptr;
+                };
+
+
+                __debugbreak();
             };
 
-
-            std::string outputString;
-            outputString.append(zipOutFilepath);
-            outputString.append("/");
-            outputString.append(filename);
-
-
-            std::ofstream output(outputString, std::ios::binary);
-
-            output.write(reinterpret_cast<char*>(&fileHeaderDataPointer[0]), uncompressedSize);
-            output.close();
-
-            __debugbreak();
-
-            delete[] filename;
-            filename = nullptr;
 
             break;
         };
@@ -331,7 +489,27 @@ ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
 
 int main()
 {
-    const bool loadLockedZip = false;
+    /*  {
+          const char* _key = "rwg123";
+          size_t _keyLength = strlen(_key);
+          std::vector<unsigned char> key(_key, _key + _keyLength);
+
+          const char* _text = "Thims ims a vermly importamt temxt. pamsta";
+          size_t _textLength = strlen(_text);
+          std::vector<unsigned char> text(_text, _text + _textLength);
+
+          std::vector<unsigned char> encrypted;
+
+          Aes256::encrypt(key, text, encrypted);
+
+          std::vector<unsigned char> decrypted;
+
+          Aes256::decrypt(key, encrypted, decrypted);
+
+          __debugbreak();
+      };*/
+
+    const bool loadLockedZip = true;
 
     const wchar_t* zipFilepath;
 
@@ -413,7 +591,7 @@ int main()
     GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
 
 
-    const std::vector<uint8_t> centralDirectory = centralDirectories[2];
+    const std::vector<uint8_t> centralDirectory = centralDirectories[3];
 
 
 
