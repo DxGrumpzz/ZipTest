@@ -16,6 +16,12 @@
     <Filter Include="Zlib">
       <UniqueIdentifier>{0e924688-4a1b-4760-a7ad-af5bba340878}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Security">
+      <UniqueIdentifier>{3fb3e045-c10c-4abd-8168-1c809e29c394}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Security\AES">
+      <UniqueIdentifier>{8cd42cde-23a3-47ba-8598-3d9fd8083d8a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -66,6 +72,9 @@
     <ClCompile Include="Zlib\compress.c">
       <Filter>Zlib</Filter>
     </ClCompile>
+    <ClCompile Include="AES\Urban82 AES256\aes256.cpp">
+      <Filter>Security\AES</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Zlib\crc32.h">
@@ -100,6 +109,9 @@
     </ClInclude>
     <ClInclude Include="Zlib\zutil.h">
       <Filter>Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="AES\Urban82 AES256\aes256.hpp">
+      <Filter>Security\AES</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
