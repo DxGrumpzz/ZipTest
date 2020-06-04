@@ -31,17 +31,12 @@ int main()
     zExtr::ReadZipFile(zipFilepath, zipFileBuffer, zipFileBufferLength);
 
 
-    std::vector<uint8_t> endCentralDirectoryOut;
-    zExtr::GetEndCentralDirectory(zipFileBuffer, zipFileBufferLength, endCentralDirectoryOut);
+    std::vector<uint8_t> endCentralDirectory;
+    zExtr::GetEndCentralDirectory(zipFileBuffer, zipFileBufferLength, endCentralDirectory);
 
-
-    int centralDirectoryOffset = (endCentralDirectoryOut[16] |
-                                  endCentralDirectoryOut[17] << 8 |
-                                  endCentralDirectoryOut[18] << 16 |
-                                  endCentralDirectoryOut[19] << 24);
 
     std::vector<std::vector<uint8_t>> centralDirectories;
-    zExtr::GetCentralDirectories(zipFileBuffer, zipFileBufferLength, centralDirectoryOffset, centralDirectories);
+    zExtr::GetCentralDirectories(zipFileBuffer, zipFileBufferLength, endCentralDirectory, centralDirectories);
 
 
     for (const std::vector<uint8_t>& centralDirectory : centralDirectories)

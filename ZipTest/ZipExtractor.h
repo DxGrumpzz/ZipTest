@@ -102,8 +102,14 @@ namespace ZipExtractor
     };
 
 
-    void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const int& centralDirectoryOffset, std::vector<std::vector<uint8_t>>& centralDirectoriesOut)
+    void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const std::vector<uint8_t> endCentralDirectory, std::vector<std::vector<uint8_t>>& centralDirectoriesOut)
     {
+
+        int centralDirectoryOffset = (endCentralDirectory[16] |
+                                      endCentralDirectory[17] << 8 |
+                                      endCentralDirectory[18] << 16 |
+                                      endCentralDirectory[19] << 24);
+
         uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
         uint8_t const* const centralDirectoryPointerEnd = &zipFileData[zipFileDataLength];
 
