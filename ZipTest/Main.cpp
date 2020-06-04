@@ -19,12 +19,16 @@ int main()
 
     const bool loadLockedZip = false;
 
-    std::wstring zipFilepath(L"Test zip files");
+    const std::string zipOutFolder("ZipTest out");
+
+
+    std::string zipFilepath("Test zip files");
 
     if (loadLockedZip == true)
-        zipFilepath.append(L"/ZipTest AES.zip");
+        zipFilepath.append("/ZipTest AES.zip");
     else
-        zipFilepath.append(L"/ZipTest.zip");
+        zipFilepath.append("/ZipTest.zip");
+    
 
 
     uint8_t* zipFileBuffer = nullptr;
@@ -111,9 +115,9 @@ int main()
 
 
         if (isFolder == true)
-            ExtractSingleFolder(zipFileBuffer, fileHeaderOffset, encryptionType);
+            ExtractSingleFolder(zipFileBuffer, fileHeaderOffset, encryptionType, zipOutFolder);
         else
-            ExtractSingleFile(zipFileBuffer, fileHeaderOffset, encryptionType);
+            ExtractSingleFile(zipFileBuffer, fileHeaderOffset, encryptionType, zipOutFolder);
 
     };
 

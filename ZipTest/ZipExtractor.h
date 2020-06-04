@@ -7,6 +7,7 @@
 
 #include "deflate.h"
 
+
 namespace ZipExtractor
 {
     constexpr int PK_FILE_HEADER_SIGNATURE = 0x504b0304;
@@ -14,8 +15,6 @@ namespace ZipExtractor
     constexpr int PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN = 0x2014B50;
 
     constexpr int PK_END_OF_CENTRAL_DIRECTORY = 0x504b0506;
-
-    const char* zipOutFilepath = "ZipTest out";
 
 
     enum class CompressionMethod : short
@@ -132,7 +131,7 @@ namespace ZipExtractor
 
 
 
-    void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipExtractor::ZipEncryption encryptionType)
+    void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipExtractor::ZipEncryption encryptionType, std::string outputFolder)
     {
         uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
 
@@ -206,34 +205,9 @@ namespace ZipExtractor
                     memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
 
-                    /*
-                    size_t slashCount = 0;
-                    char* fileNamePointer = filename;
-                    while (*fileNamePointer != '\0')
-                    {
-                        if (*fileNamePointer == '/')
-                        {
-                            slashCount++;
-                        };
-
-                        fileNamePointer++;
-                    };
-
-
-                    if (slashCount > 0)
-                    {
-                        std::filesystem::path filepath(zipOutFilepath);
-                        filepath.append(filename);
-                        filepath.remove_filename();
-                        filepath.make_preferred();
-
-                        std::filesystem::create_directories(filepath);
-                    };
-                    */
-
 
                     std::string outputString;
-                    outputString.append(zipOutFilepath);
+                    outputString.append(outputFolder);
                     outputString.append("/");
                     outputString.append(filename);
 
@@ -289,7 +263,7 @@ namespace ZipExtractor
 
                     if (slashCount > 0)
                     {
-                        std::filesystem::path filepath(zipOutFilepath);
+                        std::filesystem::path filepath(outputFolder);
                         filepath.append(filename);
                         filepath.remove_filename();
                         filepath.make_preferred();
@@ -299,7 +273,7 @@ namespace ZipExtractor
 
 
                     std::string outputString;
-                    outputString.append(zipOutFilepath);
+                    outputString.append(outputFolder);
                     outputString.append("/");
                     outputString.append(filename);
 
@@ -333,7 +307,7 @@ namespace ZipExtractor
     };
 
 
-    void ExtractSingleFolder(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption encryptionType)
+    void ExtractSingleFolder(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption encryptionType, const std::string& outputFolder)
     {
         uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
 
@@ -343,7 +317,7 @@ namespace ZipExtractor
 
         const char* folderNamePointer = reinterpret_cast<char*>(&fileHeaderPointer[30]);
 
-        std::string filename(zipOutFilepath);
+        std::string filename(outputFolder);
         filename.append("/");
         filename.append(folderNamePointer, folderNameLength);
 
@@ -380,7 +354,7 @@ namespace ZipExtractor
     };
 
 
-    void ReadZipFile(std::wstring zipFilepath, uint8_t*& zipFileBuffer, size_t& zipFileBufferLength)
+    void ReadZipFile(std::string zipFilepath, uint8_t*& zipFileBuffer, size_t& zipFileBufferLength)
     {
 
         std::ifstream fileStream(zipFilepath, std::ios::binary);
