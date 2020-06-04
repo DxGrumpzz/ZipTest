@@ -6,11 +6,12 @@
 #include <cmath>
 
 #include "aes256.hpp"
- 
+
 #include "deflate.h"
 
 #undef _CRT_SECURE_NO_DEPRECATE  
 #undef _CRT_NONSTDC_NO_DEPRECATE
+
 
 constexpr int PK_FILE_HEADER_SIGNATURE = 0x504b0304;
 
@@ -487,39 +488,9 @@ ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
 };
 
 
-int main()
+
+void ReadZipFile(std::wstring zipFilepath, uint8_t*& zipFileBuffer, size_t& zipFileBufferLength)
 {
-    /*  {
-          const char* _key = "rwg123";
-          size_t _keyLength = strlen(_key);
-          std::vector<unsigned char> key(_key, _key + _keyLength);
-
-          const char* _text = "Thims ims a vermly importamt temxt. pamsta";
-          size_t _textLength = strlen(_text);
-          std::vector<unsigned char> text(_text, _text + _textLength);
-
-          std::vector<unsigned char> encrypted;
-
-          Aes256::encrypt(key, text, encrypted);
-
-          std::vector<unsigned char> decrypted;
-
-          Aes256::decrypt(key, encrypted, decrypted);
-
-          __debugbreak();
-      };*/
-
-    const bool loadLockedZip = true;
-
-    const wchar_t* zipFilepath;
-
-    if (loadLockedZip == true)
-        zipFilepath = L"ZipTest AES.zip";
-    // zipFilepath = L"ZipTest ZipCrypto.zip";
-    else
-        zipFilepath = L"ZipTest.zip";
-
-
 
     std::ifstream fileStream(zipFilepath, std::ios::binary);
 
@@ -527,20 +498,39 @@ int main()
     if (fileStream.is_open() == false)
     {
         throw std::exception("Error opening file");
-        return 0;
     };
 
     if (fileStream.good() == false)
     {
         throw std::exception("File error");
-        return 0;
     };
 
 
-    uintmax_t zipFileSize = std::filesystem::file_size(zipFilepath);
+    zipFileBufferLength = std::filesystem::file_size(zipFilepath);
 
-    uint8_t* zipFileBuffer = new uint8_t[zipFileSize] { 0 };
-    fileStream.read((char*)&zipFileBuffer[0], zipFileSize);
+    zipFileBuffer = new uint8_t[zipFileBufferLength] { 0 };
+    fileStream.read((char*)&zipFileBuffer[0], zipFileBufferLength);
+};
+
+
+
+int main()
+{
+    const bool loadLockedZip = false;
+
+    std::wstring zipFilepath(L"Test zip files");
+
+    if (loadLockedZip == true)
+        zipFilepath.append(L"/ZipTest AES.zip");
+    else
+        zipFilepath.append(L"/ZipTest.zip");
+
+    uint8_t* zipFileBuffer = nullptr;
+    size_t zipFileBufferLength = 0;
+
+
+    ReadZipFile(zipFilepath, zipFileBuffer, zipFileBufferLength);
+
 
     std::vector<std::vector<uint8_t>> files;
 
@@ -550,7 +540,7 @@ int main()
 
     int fileIndexer = -1;
 
-    while (indexer < zipFileSize)
+    while (indexer < zipFileBufferLength)
     {
 
         pkSignature = zipFileBuffer[indexer];
@@ -579,7 +569,7 @@ int main()
 
 
     std::vector<uint8_t> endCentralDirectoryOut;
-    GetEndCentralDirectory(zipFileBuffer, zipFileSize, endCentralDirectoryOut);
+    GetEndCentralDirectory(zipFileBuffer, zipFileBufferLength, endCentralDirectoryOut);
 
 
     int centralDirectoryOffset = (endCentralDirectoryOut[16] |
@@ -588,7 +578,7 @@ int main()
                                   endCentralDirectoryOut[19] << 24);
 
     std::vector<std::vector<uint8_t>> centralDirectories;
-    GetCentralDirectories(zipFileBuffer, zipFileSize, centralDirectoryOffset, centralDirectories);
+    GetCentralDirectories(zipFileBuffer, zipFileBufferLength, centralDirectoryOffset, centralDirectories);
 
 
     const std::vector<uint8_t> centralDirectory = centralDirectories[3];
