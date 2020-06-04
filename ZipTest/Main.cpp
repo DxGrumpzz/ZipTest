@@ -1,12 +1,6 @@
-#include <fstream>
-#include <filesystem>
-#include <iostream>
 #include <string>
-#include <assert.h>
-#include <cmath>
+#include <vector>
 
-
-#include "deflate.h"
 #include "ZipExtractor.h"
 
 #undef _CRT_SECURE_NO_DEPRECATE  
@@ -35,42 +29,6 @@ int main()
     size_t zipFileBufferLength = 0;
 
     zExtr::ReadZipFile(zipFilepath, zipFileBuffer, zipFileBufferLength);
-
-
-    std::vector<std::vector<uint8_t>> files;
-
-    int pkSignature = 0;
-
-    uintmax_t indexer = 0;
-
-    int fileIndexer = -1;
-
-    while (indexer < zipFileBufferLength)
-    {
-
-        pkSignature = zipFileBuffer[indexer];
-        pkSignature <<= 8;
-
-        // Ignoring this warning because apparently it is a bug in Visual Studio's static code analyzer
-        #pragma warning(suppress : 6385)
-        pkSignature |= zipFileBuffer[indexer + 1];
-
-        pkSignature <<= 8;
-        pkSignature |= zipFileBuffer[indexer + 2];
-        pkSignature <<= 8;
-        pkSignature |= zipFileBuffer[indexer + 3];
-
-
-        if (pkSignature == zExtr::PK_FILE_HEADER_SIGNATURE)
-        {
-            files.push_back(std::vector<uint8_t>());
-            fileIndexer++;
-        };
-
-        files[fileIndexer].emplace_back(zipFileBuffer[indexer]);
-
-        indexer++;
-    };
 
 
     std::vector<uint8_t> endCentralDirectoryOut;
