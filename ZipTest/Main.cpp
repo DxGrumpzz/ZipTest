@@ -259,7 +259,7 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
             else if (encryptionType == ZipEncryption::AES)
             {
                 throw std::exception("AES encryption isn't supported, yet.");
-                    };
+            };
 
             break;
         };
@@ -312,8 +312,6 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
                 output.write(reinterpret_cast<char*>(&fileHeaderDataPointer[0]), uncompressedSize);
                 output.close();
 
-                __debugbreak();
-
                 delete[] filename;
                 filename = nullptr;
             }
@@ -332,51 +330,24 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
     extraField = nullptr;
 };
 
-                }
-                // 256 bit
-                else if (aesLength == 3)
-                {
-                    const uint8_t saltSizeInBytes = 16;
 
-                    uint8_t salt[saltSizeInBytes] { 0 };
-
-                    memcpy_s(salt, saltSizeInBytes, fileHeaderDataPointer, saltSizeInBytes);
+void ExtractSingleFolder(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption encryptionType)
+{
+    uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
 
 
-                    uint16_t passwordVerificationValue = (fileHeaderDataPointer[saltSizeInBytes] |
-                                                          fileHeaderDataPointer[saltSizeInBytes + 1]);
+    const short folderNameLength = (fileHeaderPointer[26] |
+                                    fileHeaderPointer[27] << 8);
 
+    const char* folderNamePointer = reinterpret_cast<char*>(&fileHeaderPointer[30]);
 
-                    const size_t fileDataOffset = saltSizeInBytes + 2;
+    std::string filename(zipOutFilepath);
+    filename.append("/");
+    filename.append(folderNamePointer, folderNameLength);
 
-
-                    uint8_t* encryptedFileData = new uint8_t[uncompressedSize] { 0 };
-
-                    memcpy_s(encryptedFileData, uncompressedSize, &fileHeaderDataPointer[fileDataOffset], uncompressedSize);
-
-
-                    std::vector<unsigned char> key(aesKey, aesKey + aesKeyLength);
-                    std::vector<unsigned char> encryptedData(encryptedFileData, encryptedFileData + uncompressedSize);
-                    std::vector<unsigned char> decryptedData;
-
-                    Aes256::decrypt(key, encryptedData, decryptedData);
-
-                    __debugbreak();
-
-                    delete[] encryptedFileData;
-                    encryptedFileData = nullptr;
-                };
-
-
-                __debugbreak();
-            };
-
-
-            break;
-        };
-
-    };
+    std::filesystem::create_directories(filename);
 };
+
 
 
 ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
@@ -405,7 +376,6 @@ ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
         return ZipEncryption::None;
     };
 };
-
 
 
 void ReadZipFile(std::wstring zipFilepath, uint8_t*& zipFileBuffer, size_t& zipFileBufferLength)
@@ -444,9 +414,9 @@ int main()
     else
         zipFilepath.append(L"/ZipTest.zip");
 
+
     uint8_t* zipFileBuffer = nullptr;
     size_t zipFileBufferLength = 0;
-
 
     ReadZipFile(zipFilepath, zipFileBuffer, zipFileBufferLength);
 
@@ -500,21 +470,40 @@ int main()
     GetCentralDirectories(zipFileBuffer, zipFileBufferLength, centralDirectoryOffset, centralDirectories);
 
 
-    const std::vector<uint8_t> centralDirectory = centralDirectories[3];
+    for (const std::vector<uint8_t>& centralDirectory : centralDirectories)
+    {
+        const int fileHeaderOffset = (centralDirectory[42] |
+                                      centralDirectory[43] << 8 |
+                                      centralDirectory[44] << 16 |
+                                      centralDirectory[45] << 24);
+
+        const unsigned int compressedSize = (centralDirectory[20] |
+                                             centralDirectory[21] << 8 |
+                                             centralDirectory[22] << 16 |
+                                             centralDirectory[23] << 24);
+
+        const unsigned int uncompressedSize = (centralDirectory[24] |
+                                               centralDirectory[25] << 8 |
+                                               centralDirectory[26] << 16 |
+                                               centralDirectory[27] << 24);
+
+
+        const bool isFolder = (compressedSize == 0 && uncompressedSize == 0) ? true : false;
+
+
+        ZipEncryption encryptionType = GetEncryptionType(centralDirectory);
+
+        if (encryptionType == ZipEncryption::AES)
+            throw std::exception("AES encryption isn't supported, yet.");
 
 
 
-    const int fileHeaderOffset = (centralDirectory[42] |
-                                  centralDirectory[43] << 8 |
-                                  centralDirectory[44] << 16 |
-                                  centralDirectory[45] << 24);
+        if (isFolder == true)
+            ExtractSingleFolder(zipFileBuffer, fileHeaderOffset, encryptionType);
+        else
+            ExtractSingleFile(zipFileBuffer, fileHeaderOffset, encryptionType);
 
-    ZipEncryption encryptionType = GetEncryptionType(centralDirectory);
-
-    ExtractSingleFile(zipFileBuffer, fileHeaderOffset, encryptionType);
-
-
-    __debugbreak();
+    };
 
 
     delete[] zipFileBuffer;
