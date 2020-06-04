@@ -258,85 +258,8 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
             }
             else if (encryptionType == ZipEncryption::AES)
             {
-                uint8_t* encryptedFileDataBuffer = new uint8_t[static_cast<size_t>(compressedSize)] { 0 };
-
-                uint8_t* fileDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
-                uint8_t* fileDataPointerEnd = &fileDataPointer[compressedSize];
-
-                memcpy_s(encryptedFileDataBuffer, compressedSize, fileDataPointer, compressedSize);
-
-
-                std::vector<unsigned char> key("rwg123", "rwg123" + 7);
-
-                std::vector<unsigned char> decryptedFileData;
-                std::vector<unsigned char> encryptedFileData(encryptedFileDataBuffer, encryptedFileDataBuffer + compressedSize);
-
-                Aes256::decrypt(key, encryptedFileData, decryptedFileData);
-
-                decryptedFileData.insert(decryptedFileData.begin(), 0xDA);
-                decryptedFileData.insert(decryptedFileData.begin(), 0x78);
-
-
-                uint8_t* decryptedData = new uint8_t[compressedSize] { 0 };
-                uint8_t* uncompressedFileData = new uint8_t[uncompressedSize] { 0 };
-
-                memcpy_s(decryptedData, compressedSize, &decryptedFileData[0], compressedSize);
-                uLong uncompressedFileSize = 0;
-
-                int result = uncompress(uncompressedFileData, &uncompressedFileSize, decryptedData, compressedSize + 2);
-
-                char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
-                memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
-
-
-                size_t slashCount = 0;
-
-                char* fileNamePointer = filename;
-                while (*fileNamePointer != '\0')
-                {
-                    if (*fileNamePointer == '/')
-                    {
-                        slashCount++;
+                throw std::exception("AES encryption isn't supported, yet.");
                     };
-
-                    fileNamePointer++;
-                };
-
-
-                if (slashCount > 0)
-                {
-                    std::filesystem::path filepath(zipOutFilepath);
-                    filepath.append(filename);
-                    filepath.remove_filename();
-                    filepath.make_preferred();
-
-                    std::filesystem::create_directories(filepath);
-                };
-
-                std::string outputString;
-                outputString.append(zipOutFilepath);
-                outputString.append("/");
-                outputString.append(filename);
-
-
-
-                std::ofstream output(outputString, std::ios::binary);
-
-                output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
-                output.close();
-
-
-                __debugbreak();
-
-
-                delete[] filename;
-                filename = nullptr;
-
-                delete[] uncompressedFileData;
-                uncompressedFileData = nullptr;
-
-                __debugbreak();
-            };
 
             break;
         };
@@ -396,22 +319,18 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
             }
             else if (encryptionType == ZipEncryption::AES)
             {
-                const char* aesKey = "rwg123";
-                const size_t aesKeyLength = strlen(aesKey);
+                throw std::exception("AES encryption isn't supported, yet.");
+            };
 
-                uint8_t* const fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
-                uint8_t* fileHeaderDataPointerEnd = &fileHeaderDataPointer[uncompressedSize];
 
-                uint8_t aesLength = extraField[8];
+            break;
+        };
 
-                // 128 bit
-                if (aesLength == 1)
-                {
+    };
 
-                }
-                // 192 bit
-                else if (aesLength == 2)
-                {
+    delete[] extraField;
+    extraField = nullptr;
+};
 
                 }
                 // 256 bit
