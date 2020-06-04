@@ -149,8 +149,12 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
                                     fileHeaderPointer[29] << 8);
 
 
-    uint8_t* extraField = new uint8_t[extraFieldLength] { 0 };
-    memcpy_s(extraField, extraFieldLength, &fileHeaderPointer[static_cast<size_t>(filenameLength) + 30], extraFieldLength);
+    uint8_t* extraField = nullptr;
+    if (extraFieldLength != 0)
+    {
+        extraField = new uint8_t[extraFieldLength] { 0 };
+        memcpy_s(extraField, extraFieldLength, &fileHeaderPointer[static_cast<size_t>(filenameLength) + 30], extraFieldLength);
+    };
 
 
     short compressionMethod = 0;
@@ -207,8 +211,8 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
                 memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
 
+                /*
                 size_t slashCount = 0;
-
                 char* fileNamePointer = filename;
                 while (*fileNamePointer != '\0')
                 {
@@ -230,6 +234,8 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
 
                     std::filesystem::create_directories(filepath);
                 };
+                */
+
 
                 std::string outputString;
                 outputString.append(zipOutFilepath);
@@ -237,14 +243,10 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
                 outputString.append(filename);
 
 
-
                 std::ofstream output(outputString, std::ios::binary);
 
                 output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
                 output.close();
-
-
-                __debugbreak();
 
 
                 delete[] filename;
@@ -326,8 +328,13 @@ void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption
 
     };
 
-    delete[] extraField;
-    extraField = nullptr;
+
+    if (extraField != nullptr)
+    {
+        delete[] extraField;
+        extraField = nullptr;
+    };
+
 };
 
 
