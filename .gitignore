@@ -339,4 +339,4 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 /ZipTest/Test zip files
-/ZipTest/ZipTest out/Folder/Folder inside fodler
+/ZipTest/ZipTest out/
