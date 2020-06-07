@@ -86,6 +86,38 @@ namespace ZipExtractor
     };
 
 
+    // Reads a zip file from given path and outputs a Vector containg the data inside the zip
+    void ReadZipFile(std::string zipFilepath, std::vector<uint8_t>& zipFileBufferOut)
+    {
+        std::ifstream fileStream(zipFilepath, std::ios::binary);
+
+
+        if (fileStream.is_open() == false)
+        {
+            throw std::exception("Error opening file");
+        };
+
+        if (fileStream.good() == false)
+        {
+            throw std::exception("File error");
+        };
+
+
+        uintmax_t zipFileBufferLength = std::filesystem::file_size(zipFilepath);
+
+        zipFileBufferOut.reserve(zipFileBufferLength);
+
+
+        uint8_t* zipFileBuffer = new uint8_t[zipFileBufferLength] { 0 };
+
+        fileStream.read((char*)&zipFileBuffer[0], zipFileBufferLength);
+
+        zipFileBufferOut.assign(zipFileBuffer, zipFileBuffer + zipFileBufferLength);
+
+        delete[] zipFileBuffer;
+        zipFileBuffer = nullptr;
+    };
+
 
     void GetEndCentralDirectory(std::vector<uint8_t>& const zipFileData, std::vector<uint8_t>& endCentralDirectoryOut)
     {
@@ -146,6 +178,34 @@ namespace ZipExtractor
 
             (*(centralDirectoriesOut.end() - 1)).emplace_back(*centralDirectoryPointer);
             centralDirectoryPointer++;
+        };
+    };
+
+
+    ZipExtractor::ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
+    {
+        const unsigned short generalPurposeBitFlag = (centralDirectory[8] |
+                                                      centralDirectory[9] << 8);
+
+        bool isEncrypted = generalPurposeBitFlag & 1 << 0;
+
+
+        const unsigned short compressionMethod = (centralDirectory[10] |
+                                                  centralDirectory[11] << 8);
+
+
+        const unsigned int crc32 = (centralDirectory[16] |
+                                    centralDirectory[17]);
+
+        if ((isEncrypted == true) &&
+            (compressionMethod == 99) &&
+            (crc32 == 0))
+        {
+            return ZipEncryption::AES;
+        }
+        else
+        {
+            return ZipEncryption::None;
         };
     };
 
