@@ -157,7 +157,6 @@
   <ItemGroup>
     <ClCompile Include="AES\Urban82 AES256\aes256.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="ZipExtractor.cpp" />
     <ClCompile Include="Zlib\adler32.c" />
     <ClCompile Include="Zlib\compress.c" />
     <ClCompile Include="Zlib\crc32.c" />

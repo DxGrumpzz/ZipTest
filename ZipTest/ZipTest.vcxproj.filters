@@ -78,9 +78,6 @@
     <ClCompile Include="AES\Urban82 AES256\aes256.cpp">
       <Filter>Security\AES</Filter>
     </ClCompile>
-    <ClCompile Include="ZipExtractor.cpp">
-      <Filter>ZipExtractor</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Zlib\crc32.h">
