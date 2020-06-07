@@ -10,33 +10,24 @@
 
 int main()
 {
-    const bool loadLockedZip = false;
-
     const std::string zipOutFolder("ZipTest out");
 
+    std::string zipFilepath("Test zip files/ZipTest.zip");
 
-    std::string zipFilepath("Test zip files");
-
-    if (loadLockedZip == true)
-        zipFilepath.append("/ZipTest AES.zip");
-    else
-        zipFilepath.append("/ZipTest.zip");
-
-
-
+    // Read zip file contents
     std::vector<uint8_t> zipFileBuffer;
     ZipExtractor::ReadZipFile(zipFilepath, zipFileBuffer);
 
-
+    // Get end central directory
     std::vector<uint8_t> endCentralDirectory;
     ZipExtractor::GetEndCentralDirectory(zipFileBuffer, endCentralDirectory);
 
-
+    // Get central directories
     std::vector<std::vector<uint8_t>> centralDirectories;
     ZipExtractor::GetCentralDirectories(zipFileBuffer, endCentralDirectory, centralDirectories);
 
 
-
+    // Extract zip file
     ZipExtractor::ExtractZip(zipOutFolder, zipFileBuffer, centralDirectories);
 
 };
