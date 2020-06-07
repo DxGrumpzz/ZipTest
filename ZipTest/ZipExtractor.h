@@ -130,7 +130,6 @@ namespace ZipExtractor
             (*(centralDirectoriesOut.end() - 1)).emplace_back(*centralDirectoryPointer);
             centralDirectoryPointer++;
         };
-
     };
 
 
@@ -363,6 +362,40 @@ namespace ZipExtractor
         {
             return ZipEncryption::None;
         };
+    };
+
+
+    void ExtractZipFile(const std::string& outputPath, std::vector<uint8_t>& const zipFileBuffer,const std::vector<std::vector<uint8_t>>& centralDirectories)
+    {
+        for (const std::vector<uint8_t>& centralDirectory : centralDirectories)
+        {
+            const unsigned int compressedSize = (centralDirectory[20] |
+                                                 centralDirectory[21] << 8 |
+                                                 centralDirectory[22] << 16 |
+                                                 centralDirectory[23] << 24);
+
+            const unsigned int uncompressedSize = (centralDirectory[24] |
+                                                   centralDirectory[25] << 8 |
+                                                   centralDirectory[26] << 16 |
+                                                   centralDirectory[27] << 24);
+
+
+            const bool isFolder = (compressedSize == 0 && uncompressedSize == 0) ? true : false;
+
+
+            ZipExtractor::ZipEncryption encryptionType = ZipExtractor::GetEncryptionType(centralDirectory);
+
+            if (encryptionType == ZipExtractor::ZipEncryption::AES)
+                throw std::exception("AES encryption isn't supported, yet.");
+
+
+
+            if (isFolder == true)
+                ZipExtractor::ExtractSingleFolder(zipFileBuffer, centralDirectory, encryptionType, outputPath);
+            else
+                ZipExtractor::ExtractSingleFile(zipFileBuffer, centralDirectory, encryptionType, outputPath);
+        };
+
     };
 
 
