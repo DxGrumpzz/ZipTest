@@ -18,6 +18,23 @@ namespace ZipExtractor
     constexpr int PK_END_OF_CENTRAL_DIRECTORY = 0x504b0506;
 
 
+    namespace Utilities
+    {
+        CompressionMethod GetCompressionMethod(ZipEncryption encryptionType, uint8_t* const fileHeaderPointer, uint8_t* extraField)
+        {
+            unsigned short compressionMethod = 0;
+            if (encryptionType == ZipEncryption::None)
+            {
+                compressionMethod = (fileHeaderPointer[8] |
+                                     fileHeaderPointer[9] << 8);
+            }
+            else if (encryptionType == ZipEncryption::AES)
+            {
+                compressionMethod = (extraField[static_cast<short>(9)] |
+                                     extraField[static_cast<short>(10)] << 8);
+            };
+        };
+    };
 
     enum class CompressionMethod : short
     {
