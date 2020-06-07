@@ -18,23 +18,6 @@ namespace ZipExtractor
     constexpr int PK_END_OF_CENTRAL_DIRECTORY = 0x504b0506;
 
 
-    namespace Utilities
-    {
-        CompressionMethod GetCompressionMethod(ZipEncryption encryptionType, uint8_t* const fileHeaderPointer, uint8_t* extraField)
-        {
-            unsigned short compressionMethod = 0;
-            if (encryptionType == ZipEncryption::None)
-            {
-                compressionMethod = (fileHeaderPointer[8] |
-                                     fileHeaderPointer[9] << 8);
-            }
-            else if (encryptionType == ZipEncryption::AES)
-            {
-                compressionMethod = (extraField[static_cast<short>(9)] |
-                                     extraField[static_cast<short>(10)] << 8);
-            };
-        };
-    };
 
     enum class CompressionMethod : short
     {
@@ -84,6 +67,33 @@ namespace ZipExtractor
         AES = 1,
         ZipCrypto = 2,
     };
+
+
+
+    namespace Utilities
+    {
+
+        CompressionMethod GetCompressionMethod(ZipEncryption encryptionType, uint8_t* const fileHeaderPointer, uint8_t* extraField)
+        {
+            unsigned short compressionMethod = 0;
+
+            if (encryptionType == ZipEncryption::None)
+            {
+                compressionMethod = (fileHeaderPointer[8] |
+                                     fileHeaderPointer[9] << 8);
+            }
+            else if (encryptionType == ZipEncryption::AES)
+            {
+                compressionMethod = (extraField[static_cast<short>(9)] |
+                                     extraField[static_cast<short>(10)] << 8);
+            };
+
+            return static_cast<CompressionMethod>(compressionMethod);
+        };
+
+    };
+
+
 
 
     // Reads a zip file from given path and outputs a Vector containg the data inside the zip
@@ -233,6 +243,11 @@ namespace ZipExtractor
     };
 
 
+    void GetFilename()
+    {
+
+    };
+
     void ExtractSingleFile(std::vector<uint8_t>& const zipFileData, const std::vector<uint8_t>& centralDirectory, ZipEncryption encryptionType, const std::string& outputFolder)
     {
         const int fileHeaderOffset = (centralDirectory[42] |
@@ -344,31 +359,6 @@ namespace ZipExtractor
                     memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
 
 
-                    size_t slashCount = 0;
-
-                    char* fileNamePointer = filename;
-                    while (*fileNamePointer != '\0')
-                    {
-                        if (*fileNamePointer == '/')
-                        {
-                            slashCount++;
-                        };
-
-                        fileNamePointer++;
-                    };
-
-
-                    if (slashCount > 0)
-                    {
-                        std::filesystem::path filepath(outputFolder);
-                        filepath.append(filename);
-                        filepath.remove_filename();
-                        filepath.make_preferred();
-
-                        std::filesystem::create_directories(filepath);
-                    };
-
-
                     std::string outputString;
                     outputString.append(outputFolder);
                     outputString.append("/");
@@ -439,5 +429,5 @@ namespace ZipExtractor
 
     };
 
-
+    
 };
