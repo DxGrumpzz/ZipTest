@@ -369,7 +369,7 @@ namespace ZipExtractor
     };
 
 
-    void ReadZipFile2(std::string zipFilepath, std::vector<uint8_t>& zipFileBufferOut)
+    void ReadZipFile(std::string zipFilepath, std::vector<uint8_t>& zipFileBufferOut)
     {
         std::ifstream fileStream(zipFilepath, std::ios::binary);
 

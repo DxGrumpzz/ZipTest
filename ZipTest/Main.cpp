@@ -26,7 +26,7 @@ int main()
 
 
     std::vector<uint8_t> zipFileBuffer;
-    zExtr::ReadZipFile2(zipFilepath, zipFileBuffer);
+    zExtr::ReadZipFile(zipFilepath, zipFileBuffer);
 
 
     std::vector<uint8_t> endCentralDirectory;
