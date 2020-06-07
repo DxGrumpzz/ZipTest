@@ -70,38 +70,35 @@ namespace ZipExtractor
 
 
 
-
-    void GetEndCentralDirectory(const std::vector<uint8_t>& zipFileData, std::vector<uint8_t>& endCentralDirectoryOut)
+    void GetEndCentralDirectory(std::vector<uint8_t>& const zipFileData, std::vector<uint8_t>& endCentralDirectoryOut)
     {
-        uintmax_t indexer = zipFileData.size();
-        uintmax_t dataIndexer = indexer - 4;
-
         int pkSignature = 0;
 
-        while (indexer > 0)
+        uint8_t* zipFileDataPointer = &zipFileData[zipFileData.size() - 1];
+        uint8_t const* const zipFileDataPointerEnd = &zipFileData[0];
+
+        while (pkSignature != PK_END_OF_CENTRAL_DIRECTORY)
         {
-            pkSignature = zipFileData[dataIndexer];
-            pkSignature <<= 8;
-            pkSignature |= zipFileData[dataIndexer + 1];
-            pkSignature <<= 8;
-            pkSignature |= zipFileData[dataIndexer + 2];
-            pkSignature <<= 8;
-            pkSignature |= zipFileData[dataIndexer + 3];
-
-            endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 1]);
-
-            if (pkSignature == PK_END_OF_CENTRAL_DIRECTORY)
+            if (zipFileDataPointer == zipFileDataPointerEnd)
             {
-                endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 2]);
-                endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 3]);
-                endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 4]);
+                __debugbreak();
 
-                return;
+                throw std::exception("Reading invalid data");
             };
 
-            dataIndexer--;
-            indexer--;
+            pkSignature = (*zipFileDataPointer |
+                           *(zipFileDataPointer - 1) << 8 |
+                           *(zipFileDataPointer - 2) << 16 |
+                           *(zipFileDataPointer - 3) << 24);
+
+            endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), *zipFileDataPointer);
+
+            zipFileDataPointer--;
         };
+
+        endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), *(zipFileDataPointer));
+        endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), *(zipFileDataPointer - 1));
+        endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), *(zipFileDataPointer - 2));
     };
 
 
@@ -369,6 +366,7 @@ namespace ZipExtractor
     };
 
 
+    // Reads a zip file from given path and outputs a Vector containg the data inside the zip
     void ReadZipFile(std::string zipFilepath, std::vector<uint8_t>& zipFileBufferOut)
     {
         std::ifstream fileStream(zipFilepath, std::ios::binary);
