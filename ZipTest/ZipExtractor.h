@@ -91,6 +91,12 @@ namespace ZipExtractor
             return static_cast<CompressionMethod>(compressionMethod);
         };
 
+
+        void GetFilenname(uint8_t* fileHeaderPointer, size_t filenameLength, std::string& outString)
+        {
+            char* filenamePointer = reinterpret_cast<char*>(&fileHeaderPointer[30]);
+            outString.assign(filenamePointer, filenamePointer + filenameLength);
+        };
     };
 
 
@@ -243,11 +249,6 @@ namespace ZipExtractor
     };
 
 
-    void GetFilename()
-    {
-
-    };
-
     void ExtractSingleFile(std::vector<uint8_t>& const zipFileData, const std::vector<uint8_t>& centralDirectory, ZipEncryption encryptionType, const std::string& outputFolder)
     {
         const int fileHeaderOffset = (centralDirectory[42] |
@@ -313,25 +314,17 @@ namespace ZipExtractor
 
                     int result = uncompress(uncompressedFileData, &uncompressedFileSize, fileDataBuffer, compressedSize + 2);
 
-                    char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
-                    memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
+                    std::string filename;
+                    Utilities::GetFilenname(fileHeaderPointer, filenameLength, filename);
 
+                    filename.insert(0, outputFolder);
+                    filename.insert(outputFolder.length(), "/");
 
-
-                    std::string outputString;
-                    outputString.append(outputFolder);
-                    outputString.append("/");
-                    outputString.append(filename);
-
-
-                    std::ofstream output(outputString, std::ios::binary);
+                    std::ofstream output(filename, std::ios::binary);
 
                     output.write(reinterpret_cast<char*>(&uncompressedFileData[0]), uncompressedFileSize);
                     output.close();
 
-
-                    delete[] filename;
-                    filename = nullptr;
 
                     delete[] uncompressedFileData;
                     uncompressedFileData = nullptr;
@@ -429,5 +422,5 @@ namespace ZipExtractor
 
     };
 
-    
+
 };
