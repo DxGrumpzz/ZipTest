@@ -347,30 +347,22 @@ namespace ZipExtractor
                 {
                     uint8_t* fileHeaderDataPointer = &fileHeaderPointer[30 + filenameLength + extraFieldLength];
 
-                    char* filename = new char[static_cast<size_t>(filenameLength) + 1] { 0 };
+                    std::string filename;
+                    Utilities::GetFilenname(fileHeaderPointer, filenameLength, filename);
 
-                    memcpy_s(filename, static_cast<size_t>(filenameLength) + 1, reinterpret_cast<char*>(&fileHeaderPointer[30]), filenameLength);
-
-
-                    std::string outputString;
-                    outputString.append(outputFolder);
-                    outputString.append("/");
-                    outputString.append(filename);
+                    filename.insert(0, outputFolder);
+                    filename.insert(outputFolder.length(), "/");
 
 
-                    std::ofstream output(outputString, std::ios::binary);
+                    std::ofstream output(filename, std::ios::binary);
 
                     output.write(reinterpret_cast<char*>(&fileHeaderDataPointer[0]), uncompressedSize);
                     output.close();
-
-                    delete[] filename;
-                    filename = nullptr;
                 }
                 else if (encryptionType == ZipEncryption::AES)
                 {
                     throw std::exception("AES encryption isn't supported, yet.");
                 };
-
 
                 break;
             };
@@ -389,7 +381,7 @@ namespace ZipExtractor
 
 
 
-    void ExtractZipFile(const std::string& outputPath, std::vector<uint8_t>& const zipFileBuffer,const std::vector<std::vector<uint8_t>>& centralDirectories)
+    void ExtractZip(const std::string& outputPath, std::vector<uint8_t>& const zipFileBuffer, const std::vector<std::vector<uint8_t>>& centralDirectories)
     {
         for (const std::vector<uint8_t>& centralDirectory : centralDirectories)
         {

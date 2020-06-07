@@ -37,6 +37,6 @@ int main()
 
 
 
-    ZipExtractor::ExtractZipFile(zipOutFolder, zipFileBuffer, centralDirectories);
+    ZipExtractor::ExtractZip(zipOutFolder, zipFileBuffer, centralDirectories);
 
 };
