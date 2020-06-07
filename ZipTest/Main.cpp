@@ -22,30 +22,24 @@ int main()
         zipFilepath.append("/ZipTest AES.zip");
     else
         zipFilepath.append("/ZipTest.zip");
-    
 
 
-    uint8_t* zipFileBuffer = nullptr;
-    size_t zipFileBufferLength = 0;
 
-    zExtr::ReadZipFile(zipFilepath, zipFileBuffer, zipFileBufferLength);
+    std::vector<uint8_t> zipFileBuffer;
+    zExtr::ReadZipFile2(zipFilepath, zipFileBuffer);
 
 
     std::vector<uint8_t> endCentralDirectory;
-    zExtr::GetEndCentralDirectory(zipFileBuffer, zipFileBufferLength, endCentralDirectory);
+    zExtr::GetEndCentralDirectory(zipFileBuffer, endCentralDirectory);
 
 
     std::vector<std::vector<uint8_t>> centralDirectories;
-    zExtr::GetCentralDirectories(zipFileBuffer, zipFileBufferLength, endCentralDirectory, centralDirectories);
+    zExtr::GetCentralDirectories(zipFileBuffer, endCentralDirectory, centralDirectories);
+
 
 
     for (const std::vector<uint8_t>& centralDirectory : centralDirectories)
     {
-        const int fileHeaderOffset = (centralDirectory[42] |
-                                      centralDirectory[43] << 8 |
-                                      centralDirectory[44] << 16 |
-                                      centralDirectory[45] << 24);
-
         const unsigned int compressedSize = (centralDirectory[20] |
                                              centralDirectory[21] << 8 |
                                              centralDirectory[22] << 16 |
@@ -68,13 +62,11 @@ int main()
 
 
         if (isFolder == true)
-            ExtractSingleFolder(zipFileBuffer, fileHeaderOffset, encryptionType, zipOutFolder);
+            //ExtractSingleFolder(zipFileBuffer, fileHeaderOffset, encryptionType, zipOutFolder);
+            ExtractSingleFolder(zipFileBuffer, centralDirectory, encryptionType, zipOutFolder);
         else
-            ExtractSingleFile(zipFileBuffer, fileHeaderOffset, encryptionType, zipOutFolder);
-
+            ExtractSingleFile(zipFileBuffer, centralDirectory, encryptionType, zipOutFolder);
     };
 
 
-    delete[] zipFileBuffer;
-    zipFileBuffer = nullptr;
 };
