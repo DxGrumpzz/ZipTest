@@ -10,11 +10,13 @@
 
 namespace ZipExtractor
 {
+
     constexpr int PK_FILE_HEADER_SIGNATURE = 0x504b0304;
 
     constexpr int PK_CENTRAL_DIRECTORY_SIGNATURE_LITTLE_ENDIAN = 0x2014B50;
 
     constexpr int PK_END_OF_CENTRAL_DIRECTORY = 0x504b0506;
+
 
 
     enum class CompressionMethod : short
@@ -68,9 +70,10 @@ namespace ZipExtractor
 
 
 
-    void GetEndCentralDirectory(const uint8_t* zipFileData, const uintmax_t& zipFileDataLength, std::vector<uint8_t>& outdata)
+
+    void GetEndCentralDirectory(const std::vector<uint8_t>& zipFileData, std::vector<uint8_t>& endCentralDirectoryOut)
     {
-        uintmax_t indexer = zipFileDataLength;
+        uintmax_t indexer = zipFileData.size();
         uintmax_t dataIndexer = indexer - 4;
 
         int pkSignature = 0;
@@ -85,13 +88,13 @@ namespace ZipExtractor
             pkSignature <<= 8;
             pkSignature |= zipFileData[dataIndexer + 3];
 
-            outdata.insert(outdata.begin(), zipFileData[indexer - 1]);
+            endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 1]);
 
             if (pkSignature == PK_END_OF_CENTRAL_DIRECTORY)
             {
-                outdata.insert(outdata.begin(), zipFileData[indexer - 2]);
-                outdata.insert(outdata.begin(), zipFileData[indexer - 3]);
-                outdata.insert(outdata.begin(), zipFileData[indexer - 4]);
+                endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 2]);
+                endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 3]);
+                endCentralDirectoryOut.insert(endCentralDirectoryOut.begin(), zipFileData[indexer - 4]);
 
                 return;
             };
@@ -102,16 +105,15 @@ namespace ZipExtractor
     };
 
 
-    void GetCentralDirectories(uint8_t* zipFileData, const uintmax_t& zipFileDataLength, const std::vector<uint8_t> endCentralDirectory, std::vector<std::vector<uint8_t>>& centralDirectoriesOut)
+    void GetCentralDirectories(std::vector<uint8_t>& const zipFileData, const std::vector<uint8_t>& endCentralDirectory, std::vector<std::vector<uint8_t>>& centralDirectoriesOut)
     {
-
         int centralDirectoryOffset = (endCentralDirectory[16] |
                                       endCentralDirectory[17] << 8 |
                                       endCentralDirectory[18] << 16 |
                                       endCentralDirectory[19] << 24);
 
         uint8_t* centralDirectoryPointer = &zipFileData[centralDirectoryOffset];
-        uint8_t const* const centralDirectoryPointerEnd = &zipFileData[zipFileDataLength];
+        uint8_t const* const centralDirectoryPointerEnd = &zipFileData[zipFileData.size() - 1];
 
         int centralDirectoySignature = 0;
 
@@ -136,9 +138,35 @@ namespace ZipExtractor
 
 
 
-
-    void ExtractSingleFile(uint8_t* zipFileData, int fileHeaderOffset, ZipExtractor::ZipEncryption encryptionType, std::string outputFolder)
+    void ExtractSingleFolder(std::vector<uint8_t>& const zipFileData, const std::vector<uint8_t>& centralDirectory, ZipEncryption encryptionType, const std::string& outputFolder)
     {
+        const int fileHeaderOffset = (centralDirectory[42] |
+                                      centralDirectory[43] << 8 |
+                                      centralDirectory[44] << 16 |
+                                      centralDirectory[45] << 24);
+
+        uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
+
+        const short folderNameLength = (fileHeaderPointer[26] |
+                                        fileHeaderPointer[27] << 8);
+
+        const char* folderNamePointer = reinterpret_cast<char*>(&fileHeaderPointer[30]);
+
+        std::string filename(outputFolder);
+        filename.append("/");
+        filename.append(folderNamePointer, folderNameLength);
+
+        std::filesystem::create_directories(filename);
+    };
+
+
+    void ExtractSingleFile(std::vector<uint8_t>& const zipFileData, const std::vector<uint8_t>& centralDirectory, ZipEncryption encryptionType, const std::string& outputFolder)
+    {
+        const int fileHeaderOffset = (centralDirectory[42] |
+                                      centralDirectory[43] << 8 |
+                                      centralDirectory[44] << 16 |
+                                      centralDirectory[45] << 24);
+
         uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
 
 
@@ -313,25 +341,6 @@ namespace ZipExtractor
     };
 
 
-    void ExtractSingleFolder(uint8_t* zipFileData, int fileHeaderOffset, ZipEncryption encryptionType, const std::string& outputFolder)
-    {
-        uint8_t* const fileHeaderPointer = &zipFileData[fileHeaderOffset];
-
-
-        const short folderNameLength = (fileHeaderPointer[26] |
-                                        fileHeaderPointer[27] << 8);
-
-        const char* folderNamePointer = reinterpret_cast<char*>(&fileHeaderPointer[30]);
-
-        std::string filename(outputFolder);
-        filename.append("/");
-        filename.append(folderNamePointer, folderNameLength);
-
-        std::filesystem::create_directories(filename);
-    };
-
-
-
     ZipExtractor::ZipEncryption GetEncryptionType(const std::vector<uint8_t>& centralDirectory)
     {
         const unsigned short generalPurposeBitFlag = (centralDirectory[8] |
@@ -360,9 +369,8 @@ namespace ZipExtractor
     };
 
 
-    void ReadZipFile(std::string zipFilepath, uint8_t*& zipFileBuffer, size_t& zipFileBufferLength)
+    void ReadZipFile2(std::string zipFilepath, std::vector<uint8_t>& zipFileBufferOut)
     {
-
         std::ifstream fileStream(zipFilepath, std::ios::binary);
 
 
@@ -377,12 +385,19 @@ namespace ZipExtractor
         };
 
 
-        zipFileBufferLength = std::filesystem::file_size(zipFilepath);
+        uintmax_t zipFileBufferLength = std::filesystem::file_size(zipFilepath);
 
-        zipFileBuffer = new uint8_t[zipFileBufferLength] { 0 };
+        zipFileBufferOut.reserve(zipFileBufferLength);
+
+
+        uint8_t* zipFileBuffer = new uint8_t[zipFileBufferLength] { 0 };
+
         fileStream.read((char*)&zipFileBuffer[0], zipFileBufferLength);
+
+        zipFileBufferOut.assign(zipFileBuffer, zipFileBuffer + zipFileBufferLength);
+
+        delete[] zipFileBuffer;
+        zipFileBuffer = nullptr;
     };
-
-
 
 };
